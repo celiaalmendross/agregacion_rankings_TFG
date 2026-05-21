@@ -32,12 +32,13 @@ def reconstruir_bucket_order(xsol, n):
         grupos.setdefault(raiz, []).append(i + 1)
 
     buckets = list(grupos.values())
+    buckets_ref = buckets[:]
 
     def contar_buckets_anteriores(bucket):
         representante = bucket[0] - 1
         contador = 0
 
-        for otro_bucket in buckets:
+        for otro_bucket in buckets_ref:
             if otro_bucket == bucket:
                 continue
 
