@@ -8,7 +8,7 @@ from obop.obop_ilp import resolver_obop as resolver_obop_ilp
 from obop.bucket_order import reconstruir_bucket_order
 
 
-PROJECT_DIR = Path(__file__).resolve().parents[1]
+PROJECT_DIR = Path(__file__).resolve().parents[2] 
 
 EXTENSIONES = {".soc", ".soi", ".toc", ".toi"}
 
@@ -99,3 +99,11 @@ def buckets_to_json(buckets):
     Convierte el bucket order a texto para guardarlo en el CSV.
     """
     return json.dumps(buckets, ensure_ascii=False)
+
+
+def parse_lista_float(texto):
+    return [float(x.strip()) for x in texto.split(",") if x.strip()]
+
+
+def parse_lista_int(texto):
+    return [int(x.strip()) for x in texto.split(",") if x.strip()]

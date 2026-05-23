@@ -1,48 +1,16 @@
 import argparse
-import time
 
-from utils_experiments import (
+from experimentos.utils_experiments import (
     obtener_datasets,
-    cargar_dataset,
-    resolver_obop_completo,
     crear_output_path,
-    guardar_csv,
-    buckets_to_json,
+    guardar_csv
 )
 
+from experimentos.baseline import (
+    COLUMNAS_BASELINE,
+    ejecutar_dataset
+)
 
-COLUMNAS = [
-    "instancia",
-    "tipo",
-    "n",
-    "m",
-    "obj_value",
-    "n_buckets",
-    "tiempo",
-    "buckets",
-]
-
-
-def ejecutar_dataset(dataset_path):
-    """
-    Ejecuta el baseline sobre un dataset.
-    """
-    C, _ , profile = cargar_dataset(dataset_path)
-
-    inicio = time.perf_counter()
-    obj_value, buckets = resolver_obop_completo(C)
-    fin = time.perf_counter()
-
-    return {
-        "instancia": dataset_path.name,
-        "tipo": profile.data_type,
-        "n": profile.num_alternativas,
-        "m": profile.num_voters,
-        "obj_value": obj_value,
-        "n_buckets": len(buckets),
-        "tiempo": fin - inicio,
-        "buckets": buckets_to_json(buckets),
-    }
 
 
 def main():
@@ -79,13 +47,13 @@ def main():
             fila = ejecutar_dataset(dataset_path)
             resultados.append(fila)
 
-            guardar_csv(filas=resultados, output_path=output_path, columnas=COLUMNAS)            
+            guardar_csv(filas=resultados, output_path=output_path, columnas=COLUMNAS_BASELINE)            
             print(f"{dataset_path.name}: OK")
 
         except Exception as error:
             print(f"{dataset_path.name}: ERROR - {error}")
 
-    guardar_csv(filas=resultados, output_path=output_path, columnas=COLUMNAS)
+    guardar_csv(filas=resultados, output_path=output_path, columnas=COLUMNAS_BASELINE)
 
     print(f"\nFilas generadas: {len(resultados)}")
     print(f"CSV guardado en: {output_path}")

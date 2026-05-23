@@ -3,18 +3,18 @@ import argparse
 from experimentos.utils_experiments import (
     obtener_datasets,
     crear_output_path,
-    guardar_csv
+    guardar_csv,
 )
 
-from experimentos.ruido import (
-    COLUMNAS_RUIDO,
-    ejecutar_dataset_ruido
+from experimentos.federado import (
+    COLUMNAS_FEDERADO,
+    ejecutar_dataset_federado,
 )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Ejecuta experimentos de ruido sobre OBOP."
+        description="Ejecuta experimentos federados sobre OBOP."
     )
 
     parser.add_argument("ruta", help="Carpeta o fichero PrefLib.")
@@ -28,15 +28,21 @@ def main():
     )
 
     parser.add_argument(
-        "--metodo",
+        "--modo",
         default="todos",
-        help="Método de ruido: matriz, rankings, scores o todos.",
+        help="Modo federado: matrices, rankings o todos.",
     )
 
     parser.add_argument(
         "--tecnica",
         default=None,
         help="Técnicas concretas separadas por coma.",
+    )
+
+    parser.add_argument(
+        "--clientes",
+        default="3",
+        help="Número de clientes simulados. Puede ser: 2,3,5.",
     )
 
     parser.add_argument(
@@ -47,7 +53,7 @@ def main():
 
     parser.add_argument(
         "--b",
-        default="0.01,0.05,0.10",
+        default="0,0.01,0.05,0.10",
         help="Valores de b separados por coma.",
     )
 
@@ -60,8 +66,8 @@ def main():
 
     output_path = crear_output_path(
         ruta=args.ruta,
-        carpeta_salida="ruido",
-        prefijo="ruido",
+        carpeta_salida="federado",
+        prefijo="federado",
     )
 
     print(f"Datasets seleccionados: {len(datasets)}")
@@ -71,13 +77,13 @@ def main():
 
     for dataset_path in datasets:
         try:
-            filas = ejecutar_dataset_ruido(dataset_path, args)
+            filas = ejecutar_dataset_federado(dataset_path, args)
             todas_filas.extend(filas)
 
             guardar_csv(
                 filas=todas_filas,
                 output_path=output_path,
-                columnas=COLUMNAS_RUIDO,
+                columnas=COLUMNAS_FEDERADO,
             )
 
             print(f"{dataset_path.name}: {len(filas)} filas")
@@ -88,7 +94,7 @@ def main():
     guardar_csv(
         filas=todas_filas,
         output_path=output_path,
-        columnas=COLUMNAS_RUIDO,
+        columnas=COLUMNAS_FEDERADO,
     )
 
     print(f"\nFilas generadas: {len(todas_filas)}")
