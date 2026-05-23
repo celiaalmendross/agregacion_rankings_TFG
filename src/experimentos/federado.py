@@ -35,14 +35,13 @@ COLUMNAS_FEDERADO = [
     "seed",
     "obj_value_central",
     "obj_value_federado",
-    "distancia_federado_sobre_C_central",
     "perdida",
     "n_buckets_central",
     "n_buckets_federado",
-    "tiempo",
     "kendall_tau",
     "buckets_central",
     "buckets_federado",
+    "tiempo"
 ]
 
 
@@ -158,11 +157,6 @@ def crear_fila_federado(
         C_central,
     )
 
-    distancia_fed_sobre_C_central = distancia_bucket_C(
-        buckets_federado,
-        C_central,
-    )
-
     return {
         "instancia": dataset_path.name,
         "tipo": profile.data_type,
@@ -175,14 +169,13 @@ def crear_fila_federado(
         "seed": seed,
         "obj_value_central": obj_central,
         "obj_value_federado": obj_federado,
-        "distancia_federado_sobre_C_central": distancia_fed_sobre_C_central,
         "perdida": perdida,
         "n_buckets_central": len(buckets_central),
         "n_buckets_federado": len(buckets_federado),
-        "tiempo": tiempo,
         "kendall_tau": tau,
         "buckets_central": buckets_to_json(buckets_central),
         "buckets_federado": buckets_to_json(buckets_federado),
+        "tiempo": tiempo
     }
 
 
