@@ -27,3 +27,6 @@ Estos ficheros se transforman internamente en una matriz de precedencias por par
 ## Nota sobre los datos
 
 Los datasets no son datos generados por el proyecto, sino conjuntos procedentes de PrefLib. Se incluyen únicamente con fines experimentales y de reproducibilidad del Trabajo Fin de Grado.
+
+## Colecciones para el entorno federado
+Las carpetas seleccion_federado_[instancia]/ contienen los dataset utilizados para las pruebas de la simulación federada. 

@@ -18,3 +18,7 @@ Contiene los resultados del OBOP exacto sobre las matrices originales, sin intro
 ## ruido/
 
 Contiene los resultados obtenidos tras aplicar estrategias de ruido y resolver de nuevo el OBOP.
+
+## federado/
+
+Contiene los resultados obtenidos tras construir un entorno fedeado y resolver de nuevo el OBOP.
