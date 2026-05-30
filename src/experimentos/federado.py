@@ -46,11 +46,8 @@ COLUMNAS_FEDERADO = [
 
 
 TECNICAS_FED_MATRICES = {"todos", "aleatoria", "cerca_empate"}
-TECNICAS_FED_RANKINGS = {"intercambio", "movimiento", "empate", "local"}
 
 MODOS_FEDERADOS_VALIDOS = {"matrices", "rankings", "todos"}
-TODAS_TECNICAS_FED = TECNICAS_FED_MATRICES | TECNICAS_FED_RANKINGS
-
 
 def parse_modo_federado(texto):
     modo = texto.strip().lower()
@@ -63,41 +60,44 @@ def parse_modo_federado(texto):
 
     return modo
 
+def configuraciones_federadas(modo, texto_tecnica=None):
+    """
+    Devuelve pares (modo_federado, tecnica).
 
-def tecnicas_por_modo_federado(modo):
-    if modo == "matrices":
-        return sorted(TECNICAS_FED_MATRICES)
-
+    En modo rankings no existe técnica como parámetro. Se usa 'aleatoria'
+    solo como etiqueta en el CSV.
+    """
     if modo == "rankings":
-        return sorted(TECNICAS_FED_RANKINGS)
+        if texto_tecnica is not None:
+            raise ValueError(
+                "El modo federado rankings no admite --tecnica. "
+                "Usa solo: --modo rankings --b ..."
+            )
 
-    if modo == "todos":
-        return sorted(TODAS_TECNICAS_FED)
+        return [("rankings", "aleatoria")]
 
-    raise ValueError(f"Modo federado no reconocido: {modo}")
+    if modo == "matrices":
+        tecnicas_disponibles = TECNICAS_FED_MATRICES
 
+    elif modo == "todos":
+        if texto_tecnica is not None:
+            raise ValueError(
+                "Con --modo todos no indiques --tecnica."
+            )
 
-def modo_de_tecnica_federada(tecnica):
-    if tecnica in TECNICAS_FED_MATRICES:
-        return "matrices"
+        return (
+            [("matrices", tecnica) for tecnica in sorted(TECNICAS_FED_MATRICES)]
+            + [("rankings", "aleatoria")]
+        )
 
-    if tecnica in TECNICAS_FED_RANKINGS:
-        return "rankings"
-
-    raise ValueError(f"Técnica federada no reconocida: {tecnica}")
-
-
-def parse_tecnicas_federadas(texto_tecnica, modo):
-    """
-    Devuelve las técnicas federadas que se van a ejecutar.
-
-    Si no se indica una técnica concreta, se ejecutan todas las técnicas
-    del modo seleccionado.
-    """
-    tecnicas_permitidas = set(tecnicas_por_modo_federado(modo))
+    else:
+        raise ValueError(f"Modo federado no reconocido: {modo}")
 
     if texto_tecnica is None:
-        return sorted(tecnicas_permitidas)
+        return [
+            (modo, tecnica)
+            for tecnica in sorted(tecnicas_disponibles)
+        ]
 
     tecnicas = [
         tecnica.strip()
@@ -105,29 +105,21 @@ def parse_tecnicas_federadas(texto_tecnica, modo):
         if tecnica.strip()
     ]
 
-    tecnicas_invalidas = [
+    invalidas = [
         tecnica for tecnica in tecnicas
-        if tecnica not in TODAS_TECNICAS_FED
+        if tecnica not in tecnicas_disponibles
     ]
 
-    if tecnicas_invalidas:
+    if invalidas:
         raise ValueError(
-            f"Técnicas federadas no válidas: {tecnicas_invalidas}. "
-            f"Técnicas disponibles: {sorted(TODAS_TECNICAS_FED)}"
+            f"Técnicas no válidas para el modo {modo}: {invalidas}. "
+            f"Técnicas disponibles: {sorted(tecnicas_disponibles)}"
         )
 
-    tecnicas_fuera_modo = [
-        tecnica for tecnica in tecnicas
-        if tecnica not in tecnicas_permitidas
+    return [
+        (modo, tecnica)
+        for tecnica in sorted(set(tecnicas))
     ]
-
-    if tecnicas_fuera_modo:
-        raise ValueError(
-            f"Estas técnicas no pertenecen al modo federado '{modo}': "
-            f"{tecnicas_fuera_modo}"
-        )
-
-    return sorted(set(tecnicas))
 
 
 def crear_fila_federado(
@@ -228,7 +220,6 @@ def ejecutar_configuracion_federada(
             clientes=clientes,
             num_alternativas=profile.num_alternativas,
             b=b,
-            tecnica=tecnica,
             rng=rng,
         )
 
@@ -279,7 +270,7 @@ def ejecutar_dataset_federado(dataset_path, args):
     obj_central, buckets_central = resolver_obop_completo(C_central)
 
     modo = parse_modo_federado(args.modo)
-    tecnicas = parse_tecnicas_federadas(args.tecnica, modo)
+    configuraciones = configuraciones_federadas(modo, args.tecnica)
     seeds = parse_lista_int(args.seeds)
     valores_b = parse_lista_float(args.b)
     clientes_lista = parse_lista_int(args.clientes)
@@ -288,8 +279,7 @@ def ejecutar_dataset_federado(dataset_path, args):
 
     for num_clientes in clientes_lista:
         for seed in seeds:
-            for tecnica in tecnicas:
-                modo_federado = modo_de_tecnica_federada(tecnica)
+            for modo_federado, tecnica in configuraciones:
 
                 for b in valores_b:
                     fila = ejecutar_configuracion_federada(

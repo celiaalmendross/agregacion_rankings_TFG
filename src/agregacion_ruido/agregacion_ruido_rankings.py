@@ -46,22 +46,34 @@ def aplicar_intercambio(ranking, num_cambios, rng):
 def aplicar_movimiento(ranking, num_cambios, rng):
     """
     Aplica la estrategia de movimiento.
-    En cada cambio se selecciona un ítem al azar, se elimina de su bucket actual y se inserta en otro bucket elegido aleatoriamente.
+
+    En cada cambio se selecciona un ítem al azar y se desplaza un número
+    aleatorio de buckets. El desplazamiento se elige entre 1 y el número total de buckets,
+    con dirección aleatoria hacia arriba o hacia abajo.
+
+    Si el ítem pertenece a un bucket con más elementos, se extrae de ese bucket
+    y se añade al bucket destino. Si el bucket original queda vacío, se elimina.
     """
+     
     ranking = copiar_ranking(ranking)
-    items = obtener_lista_items(ranking)
-
-    if len(items) == 0:
+    if len(ranking) < 2:
         return ranking
-
+    
     for _ in range(num_cambios):
+        items = obtener_lista_items(ranking)
+        if len(items) == 0 or len(ranking) < 2:
+            break
+
         item = rng.choice(items)
-
         pos_actual = next(i for i, bucket in enumerate(ranking) if item in bucket)
-        ranking[pos_actual].remove(item)
+        movimiento = rng.integers(1, len(ranking))
+        direccion = rng.choice([-1, 1])
 
-        nueva_pos = rng.integers(0, len(ranking))
+        nueva_pos = (pos_actual + direccion * movimiento) % len(ranking)    
+        ranking[pos_actual].remove(item)
         ranking[nueva_pos].append(item)
+
+        ranking = eliminar_buckets_vacios(ranking)
 
     return eliminar_buckets_vacios(ranking)
 
@@ -74,10 +86,11 @@ def aplicar_empate(ranking, num_cambios, rng):
     """
     ranking = copiar_ranking(ranking)
 
-    if len(ranking) == 0:
-        return ranking
-
     for _ in range(num_cambios):
+
+        if len(ranking) == 0:
+            return ranking
+    
         pos = rng.integers(0, len(ranking))
         bucket = ranking[pos]
 
@@ -85,7 +98,7 @@ def aplicar_empate(ranking, num_cambios, rng):
             item = rng.choice(bucket)
             bucket.remove(item)
 
-            nueva_pos = rng.integers(0, len(ranking))
+            nueva_pos = rng.integers(0, len(ranking) + 1)
             ranking.insert(nueva_pos, [item])
         else:
             otros_buckets = [
@@ -101,6 +114,7 @@ def aplicar_empate(ranking, num_cambios, rng):
 
             ranking[origen].remove(item)
             ranking[pos].append(item)
+        ranking = eliminar_buckets_vacios(ranking)
 
     return eliminar_buckets_vacios(ranking)
 
@@ -134,10 +148,38 @@ def calcular_num_cambios(b, n_items):
     return max(1, int(round(b * n_items)))
 
 
-def aplicar_ruido_rankings(rankings, num_alternativas, b, rng, tecnica):
+def aplicar_perturbacion_ranking(ranking, num_cambios, rng):
     """
-    Aplica una estrategia de ruido a todos los rankings y reconstruye la matriz C.
-    Primero se perturba cada ranking individual según la técnica indicada. Después, a partir de los rankings modificados, se construye la matriz de precedencias C que se usará como entrada del OBOP.
+    Aplica una perturbación aleatoria sobre un ranking individual.
+
+    Para cada ranking se selecciona al azar una de las operaciones básicas:
+    intercambio, movimiento, empate o local.
+    """
+    tecnicas_base = ["intercambio", "movimiento", "empate", "local"]
+    tecnica = rng.choice(tecnicas_base)
+
+    if tecnica == "intercambio":
+        return aplicar_intercambio(ranking, num_cambios, rng)
+
+    if tecnica == "movimiento":
+        return aplicar_movimiento(ranking, num_cambios, rng)
+
+    if tecnica == "empate":
+        return aplicar_empate(ranking, num_cambios, rng)
+
+    if tecnica == "local":
+        return aplicar_local(ranking, num_cambios, rng)
+
+
+def aplicar_ruido_rankings(rankings, num_alternativas, b, rng):
+    """
+    Aplica ruido aleatorio sobre rankings individuales y reconstruye la matriz C.
+
+    Para cada ranking individual se escoge al azar una operación básica entre:
+    intercambio, movimiento, empate o local.
+
+    Después, a partir de los rankings modificados, se construye la matriz de
+    precedencias que se usará como entrada del OBOP.
     """
     num_cambios = calcular_num_cambios(b, num_alternativas)
 
@@ -147,19 +189,11 @@ def aplicar_ruido_rankings(rankings, num_alternativas, b, rng, tecnica):
     rankings_ruido = []
 
     for ranking in rankings:
-        if tecnica == "intercambio":
-            ranking_ruido = aplicar_intercambio(ranking, num_cambios, rng)
-        elif tecnica == "movimiento":
-            ranking_ruido = aplicar_movimiento(ranking, num_cambios, rng)
-        elif tecnica == "empate":
-            ranking_ruido = aplicar_empate(ranking, num_cambios, rng)
-        elif tecnica == "local":
-            ranking_ruido = aplicar_local(ranking, num_cambios, rng)
-        else:
-            raise ValueError(
-                "tecnica debe ser: intercambio, movimiento, empate o local"
-            )
-
+        ranking_ruido = aplicar_perturbacion_ranking(
+            ranking,
+            num_cambios,
+            rng
+        )
         rankings_ruido.append(ranking_ruido)
 
     return construir_C_desde_rankings(rankings_ruido, num_alternativas)

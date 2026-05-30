@@ -3,10 +3,7 @@ import numpy as np
 from data.preflib_to_C import construir_C_desde_rankings, validar_C
 from agregacion_ruido.agregacion_ruido_matriz import perturbar_matriz
 from agregacion_ruido.agregacion_ruido_rankings import (
-    aplicar_intercambio,
-    aplicar_movimiento,
-    aplicar_empate,
-    aplicar_local,
+    aplicar_perturbacion_ranking,
     calcular_num_cambios,
 )
 
@@ -98,12 +95,12 @@ def agregar_matrices_clientes(matrices_clientes, pesos_clientes):
     return validar_C(C_global)
 
 
-def perturbar_rankings_cliente(rankings_cliente, num_alternativas, b, tecnica, rng):
+def perturbar_rankings_cliente(rankings_cliente, num_alternativas, b, rng):
     """
-    Perturba los rankings de un cliente y devuelve los rankings perturbados.
-    A diferencia de aplicar_ruido_rankings, aquí no devuelve C, sino los
-    rankings modificados, porque queremos simular que el cliente manda
-    rankings perturbados al servidor.
+    Perturba los rankings de un cliente mediante la estrategia aleatoria.
+
+    No existe técnica como parámetro: cada ranking se modifica con una operación
+    elegida aleatoriamente entre intercambio, movimiento, empate o local.
     """
     num_cambios = calcular_num_cambios(b, num_alternativas)
 
@@ -113,23 +110,12 @@ def perturbar_rankings_cliente(rankings_cliente, num_alternativas, b, tecnica, r
         if num_cambios == 0:
             ranking_ruido = [bucket[:] for bucket in ranking]
 
-        elif tecnica == "intercambio":
-            ranking_ruido = aplicar_intercambio(ranking, num_cambios, rng)
-
-        elif tecnica == "movimiento":
-            ranking_ruido = aplicar_movimiento(ranking, num_cambios, rng)
-
-        elif tecnica == "empate":
-            ranking_ruido = aplicar_empate(ranking, num_cambios, rng)
-
-        elif tecnica == "local":
-            ranking_ruido = aplicar_local(ranking, num_cambios, rng)
-
         else:
-            raise ValueError(
-                "tecnica debe ser: intercambio, movimiento, empate o local"
+            ranking_ruido = aplicar_perturbacion_ranking(
+                ranking,
+                num_cambios,
+                rng,
             )
-
         ranking_ruido = completar_ranking_con_bucket_final(
             ranking_ruido,
             num_alternativas,
@@ -138,7 +124,6 @@ def perturbar_rankings_cliente(rankings_cliente, num_alternativas, b, tecnica, r
         rankings_ruido.append(ranking_ruido)
 
     return rankings_ruido
-
 
 def ejecutar_federado_matrices(
     clientes,
@@ -183,13 +168,11 @@ def ejecutar_federado_rankings(
     clientes,
     num_alternativas,
     b,
-    tecnica,
     rng,
 ):
     """
-    Escenario B:
-    Cada cliente perturba sus rankings y manda esos rankings perturbados.
-    El servidor junta rankings perturbados y construye C.
+    Cada cliente perturba sus rankings mediante la estrategia aleatoria.
+    El servidor junta los rankings perturbados y construye C.
     """
     rankings_perturbados_globales = []
 
@@ -198,7 +181,6 @@ def ejecutar_federado_rankings(
             rankings_cliente=rankings_cliente,
             num_alternativas=num_alternativas,
             b=b,
-            tecnica=tecnica,
             rng=rng,
         )
 
@@ -210,3 +192,4 @@ def ejecutar_federado_rankings(
     )
 
     return validar_C(C_global)
+

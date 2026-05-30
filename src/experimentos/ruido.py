@@ -39,11 +39,10 @@ COLUMNAS_RUIDO = [
 
 
 TECNICAS_MATRIZ = {"todos", "aleatoria", "cerca_empate"}
-TECNICAS_RANKINGS = {"intercambio", "movimiento", "empate", "local"}
 TECNICAS_SCORES = {"logistic", "probit"}
 
 METODOS_VALIDOS = {"matriz", "rankings", "scores", "todos"}
-TODAS_TECNICAS = TECNICAS_MATRIZ | TECNICAS_RANKINGS | TECNICAS_SCORES
+TODAS_TECNICAS = TECNICAS_MATRIZ | TECNICAS_SCORES
 
 
 def parse_metodo(texto):
@@ -58,46 +57,52 @@ def parse_metodo(texto):
     return metodo
 
 
-def tecnicas_por_metodo(metodo):
-    if metodo == "matriz":
-        return sorted(TECNICAS_MATRIZ)
+def valores_b(args):
+    return parse_lista_float(args.b)
 
+def configuraciones_por_metodo(metodo, texto_tecnica=None):
+    """
+    Devuelve pares (metodo, tecnica).
+
+    En el método rankings no existe técnica como parámetro experimental.
+    Se devuelve tecnica='aleatoria' solo como etiqueta para el CSV.
+    """
     if metodo == "rankings":
-        return sorted(TECNICAS_RANKINGS)
+        if texto_tecnica is not None:
+            raise ValueError(
+                "El método rankings no admite --tecnica. "
+                "Usa solo: --metodo rankings --b ..."
+            )
 
-    if metodo == "scores":
-        return sorted(TECNICAS_SCORES)
+        return [("rankings", "aleatoria")]
 
-    if metodo == "todos":
-        return sorted(TODAS_TECNICAS)
+    if metodo == "matriz":
+        tecnicas_disponibles = TECNICAS_MATRIZ
 
-    raise ValueError(f"Método no reconocido: {metodo}")
+    elif metodo == "scores":
+        tecnicas_disponibles = TECNICAS_SCORES
 
+    elif metodo == "todos":
+        if texto_tecnica is not None:
+            raise ValueError(
+                "Con --metodo todos no indiques --tecnica. "
+                "Se ejecutan automáticamente las técnicas de matriz, rankings y scores."
+            )
 
-def metodo_de_tecnica(tecnica):
-    if tecnica in TECNICAS_MATRIZ:
-        return "matriz"
+        return (
+            [("matriz", tecnica) for tecnica in sorted(TECNICAS_MATRIZ)]
+            + [("rankings", "aleatoria")]
+            + [("scores", tecnica) for tecnica in sorted(TECNICAS_SCORES)]
+        )
 
-    if tecnica in TECNICAS_RANKINGS:
-        return "rankings"
-
-    if tecnica in TECNICAS_SCORES:
-        return "scores"
-
-    raise ValueError(f"Técnica no reconocida: {tecnica}")
-
-
-def parse_tecnicas(texto_tecnica, metodo):
-    """
-    Devuelve las técnicas que se van a ejecutar.
-
-    Si no se indica una técnica concreta, se ejecutan todas las técnicas
-    del método seleccionado.
-    """
-    tecnicas_permitidas = set(tecnicas_por_metodo(metodo))
+    else:
+        raise ValueError(f"Método no reconocido: {metodo}")
 
     if texto_tecnica is None:
-        return sorted(tecnicas_permitidas)
+        return [
+            (metodo, tecnica)
+            for tecnica in sorted(tecnicas_disponibles)
+        ]
 
     tecnicas = [
         tecnica.strip()
@@ -105,33 +110,21 @@ def parse_tecnicas(texto_tecnica, metodo):
         if tecnica.strip()
     ]
 
-    tecnicas_invalidas = [
+    invalidas = [
         tecnica for tecnica in tecnicas
-        if tecnica not in TODAS_TECNICAS
+        if tecnica not in tecnicas_disponibles
     ]
 
-    if tecnicas_invalidas:
+    if invalidas:
         raise ValueError(
-            f"Técnicas no válidas: {tecnicas_invalidas}. "
-            f"Técnicas disponibles: {sorted(TODAS_TECNICAS)}"
+            f"Técnicas no válidas para el método {metodo}: {invalidas}. "
+            f"Técnicas disponibles: {sorted(tecnicas_disponibles)}"
         )
 
-    tecnicas_fuera_metodo = [
-        tecnica for tecnica in tecnicas
-        if tecnica not in tecnicas_permitidas
+    return [
+        (metodo, tecnica)
+        for tecnica in sorted(set(tecnicas))
     ]
-
-    if tecnicas_fuera_metodo:
-        raise ValueError(
-            f"Estas técnicas no pertenecen al método '{metodo}': "
-            f"{tecnicas_fuera_metodo}"
-        )
-
-    return sorted(set(tecnicas))
-
-
-def valores_b(args):
-    return parse_lista_float(args.b)
 
 
 def crear_fila_ruido(
@@ -217,7 +210,6 @@ def ejecutar_ruido_rankings(
     profile,
     seed,
     b,
-    tecnica,
     obj_original,
     buckets_original,
 ):
@@ -228,8 +220,7 @@ def ejecutar_ruido_rankings(
         rankings=rankings,
         num_alternativas=profile.num_alternativas,
         b=b,
-        rng=rng,
-        tecnica=tecnica,
+        rng=rng
     )
 
     obj_ruido, buckets_ruido = resolver_obop_completo(C_ruido)
@@ -240,7 +231,7 @@ def ejecutar_ruido_rankings(
         dataset_path=dataset_path,
         profile=profile,
         metodo="rankings",
-        tecnica=tecnica,
+        tecnica="aleatoria",
         b=b,
         seed=seed,
         obj_original=obj_original,
@@ -291,6 +282,7 @@ def ejecutar_configuracion_ruido(
     rankings,
     profile,
     dataset_path,
+    metodo,
     tecnica,
     b,
     seed,
@@ -300,7 +292,6 @@ def ejecutar_configuracion_ruido(
     if b < 0:
         raise ValueError("El valor de b debe ser no negativo.")
 
-    metodo = metodo_de_tecnica(tecnica)
 
     if metodo == "matriz":
         return ejecutar_ruido_matriz(
@@ -322,7 +313,6 @@ def ejecutar_configuracion_ruido(
             profile=profile,
             seed=seed,
             b=b,
-            tecnica=tecnica,
             obj_original=obj_original,
             buckets_original=buckets_original,
         )
@@ -351,19 +341,20 @@ def ejecutar_dataset_ruido(dataset_path, args):
     obj_original, buckets_original = resolver_obop_completo(C)
 
     metodo = parse_metodo(args.metodo)
-    tecnicas = parse_tecnicas(args.tecnica, metodo)
+    configuraciones = configuraciones_por_metodo(metodo, args.tecnica)
     seeds = parse_lista_int(args.seeds)
 
     filas = []
 
     for seed in seeds:
-        for tecnica in tecnicas:
+        for metodo_config, tecnica in configuraciones:
             for b in valores_b(args):
                 fila = ejecutar_configuracion_ruido(
                     C=C,
                     rankings=rankings,
                     profile=profile,
                     dataset_path=dataset_path,
+                    metodo=metodo_config,
                     tecnica=tecnica,
                     b=b,
                     seed=seed,
