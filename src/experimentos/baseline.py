@@ -6,7 +6,8 @@ from experimentos.utils_experiments import (
     buckets_to_json
 )
 
-from metricas.perdida_calidad import distancia_bucket_C
+
+from obop.obop_ilp import normalizar_obj_value
 
 COLUMNAS_BASELINE = [
     "instancia",
@@ -14,6 +15,7 @@ COLUMNAS_BASELINE = [
     "n",
     "m",
     "obj_value",
+    "obj_value_norm",
     "n_buckets",
     "tiempo",
     "buckets"
@@ -36,6 +38,7 @@ def ejecutar_dataset(dataset_path):
         "n": profile.num_alternativas,
         "m": profile.num_voters,
         "obj_value": obj_value,
+        "obj_value_nor": normalizar_obj_value(obj_value, profile.num_alternativas),
         "n_buckets": len(buckets),
         "tiempo": fin - inicio,
         "buckets": buckets_to_json(buckets)

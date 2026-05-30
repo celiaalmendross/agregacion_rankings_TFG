@@ -144,7 +144,6 @@ def calcular_num_cambios(b, n_items):
     """
     if b == 0:
         return 0
-
     return max(1, int(round(b * n_items)))
 
 

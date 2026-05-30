@@ -9,10 +9,13 @@ from experimentos.utils_experiments import (
     parse_lista_int,
 )
 
+from obop.obop_ilp import normalizar_obj_value
+
 from agregacion_ruido.agregacion_ruido_matriz import perturbar_matriz
 from agregacion_ruido.agregacion_ruido_rankings import aplicar_ruido_rankings
 from agregacion_ruido.agregacion_ruido_scores_latentes import aplicar_ruido_scores
 
+from metricas.distancia_ruido import distancia_ruido
 from metricas.kendall_tau import kendall_tau_b
 from metricas.perdida_calidad import perdida_calidad
 
@@ -27,12 +30,15 @@ COLUMNAS_RUIDO = [
     "parametros",
     "seed",
     "obj_value",
+    "obj_value_norm",
     "obj_value_ruido",
+    "obj_value_ruido_norm",
     "n_buckets",
     "n_buckets_ruido",
     "tiempo",
     "kendall_tau",
     "perdida",
+    "distancia_ruido",
     "buckets_original",
     "buckets_ruido",
 ]
@@ -137,6 +143,7 @@ def crear_fila_ruido(
     obj_original,
     buckets_original,
     C_original,
+    C_ruido,
     obj_ruido,
     buckets_ruido,
     tiempo,
@@ -147,6 +154,7 @@ def crear_fila_ruido(
     """
     tau = kendall_tau_b(buckets_original, buckets_ruido)
     perdida = perdida_calidad(buckets_original, buckets_ruido, C_original)
+    distancia = distancia_ruido(C_original, C_ruido)
 
     return {
         "instancia": dataset_path.name,
@@ -158,10 +166,13 @@ def crear_fila_ruido(
         "parametros": f"b={b}",
         "seed": seed,
         "obj_value": obj_original,
+        "obj_value_norm": normalizar_obj_value(obj_original, profile.num_alternativas),
         "obj_value_ruido": obj_ruido,
+        "obj_value_ruido_norm": normalizar_obj_value(obj_ruido, profile.num_alternativas),
         "n_buckets": len(buckets_original),
         "n_buckets_ruido": len(buckets_ruido),
         "tiempo": tiempo,
+        "distancia_ruido": distancia,
         "kendall_tau": tau,
         "perdida": perdida,
         "buckets_original": buckets_to_json(buckets_original),
@@ -197,6 +208,7 @@ def ejecutar_ruido_matriz(
         obj_original=obj_original,
         buckets_original=buckets_original,
         C_original=C,
+        C_ruido=C_ruido,
         obj_ruido=obj_ruido,
         buckets_ruido=buckets_ruido,
         tiempo=fin - inicio,
@@ -237,6 +249,7 @@ def ejecutar_ruido_rankings(
         obj_original=obj_original,
         buckets_original=buckets_original,
         C_original=C,
+        C_ruido=C_ruido,
         obj_ruido=obj_ruido,
         buckets_ruido=buckets_ruido,
         tiempo=fin - inicio,
@@ -271,6 +284,7 @@ def ejecutar_ruido_scores(
         obj_original=obj_original,
         buckets_original=buckets_original,
         C_original=C,
+        C_ruido=C_ruido,
         obj_ruido=obj_ruido,
         buckets_ruido=buckets_ruido,
         tiempo=fin - inicio,

@@ -41,8 +41,11 @@ def perdida_calidad(buckets_original, buckets_ruido, C_original):
     Calcula cuánto empeora el consenso con ruido respecto al consenso original.
 
     Se evalúan ambos bucket orders sobre la matriz original C.
+    Se devuelve de manera normalizada, dividiendo por el número máximo posible de cambios, que es n*(n-1).
     """
     distancia_original = distancia_bucket_C(buckets_original, C_original)
     distancia_ruido = distancia_bucket_C(buckets_ruido, C_original)
+    perdida = float(distancia_ruido - distancia_original)
 
-    return float(distancia_ruido - distancia_original)
+    n = C_original.shape[0]
+    return  perdida / (n * (n - 1))

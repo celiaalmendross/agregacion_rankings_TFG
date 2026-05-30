@@ -89,3 +89,9 @@ def resolver_obop(C, mostrar_solver=False):
     obj = modelo.getObjVal()
 
     return obj, xsol
+
+def normalizar_obj_value(obj_value, n):
+    """
+    Normaliza el valor objetivo del OBOP dividiendo entre n(n-1).
+    """
+    return float(obj_value / (n * (n - 1)))
