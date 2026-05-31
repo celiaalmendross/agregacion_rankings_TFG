@@ -171,28 +171,33 @@ def aplicar_perturbacion_ranking(ranking, num_cambios, rng):
 
 
 def aplicar_ruido_rankings(rankings, num_alternativas, b, rng):
-    """
-    Aplica ruido aleatorio sobre rankings individuales y reconstruye la matriz C.
+        """
+        Aplica ruido aleatorio sobre rankings individuales y reconstruye
+        la matriz C.
 
-    Para cada ranking individual se escoge al azar una operación básica entre:
-    intercambio, movimiento, empate o local.
+        b representa la probabilidad de perturbar cada ranking individual.
 
-    Después, a partir de los rankings modificados, se construye la matriz de
-    precedencias que se usará como entrada del OBOP.
-    """
-    num_cambios = calcular_num_cambios(b, num_alternativas)
+        Cuando un ranking es seleccionado para ser perturbado, se aplica
+        una única operación elemental aleatoria. De esta forma, b controla
+        la proporción esperada de rankings modificados, mientras que la
+        intensidad local de cada perturbación se mantiene fija.
+        """
+        if b < 0 or b > 1:
+            raise ValueError("El parámetro b debe estar en el intervalo [0, 1].")
 
-    if num_cambios == 0:
-        return construir_C_desde_rankings(rankings, num_alternativas)
+        num_cambios = 1
+        rankings_ruido = []
 
-    rankings_ruido = []
+        for ranking in rankings:
+            if rng.random() < b:
+                ranking_ruido = aplicar_perturbacion_ranking(
+                    ranking,
+                    num_cambios,
+                    rng
+                )
+            else:
+                ranking_ruido = copiar_ranking(ranking)
 
-    for ranking in rankings:
-        ranking_ruido = aplicar_perturbacion_ranking(
-            ranking,
-            num_cambios,
-            rng
-        )
-        rankings_ruido.append(ranking_ruido)
+            rankings_ruido.append(ranking_ruido)
 
-    return construir_C_desde_rankings(rankings_ruido, num_alternativas)
+        return construir_C_desde_rankings(rankings_ruido, num_alternativas)
