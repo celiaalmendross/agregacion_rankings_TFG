@@ -1,5 +1,5 @@
 """
-Métrica de pérdida de calidad del consenso con ruido respecto al consenso original.
+Métrica de pérdida de calidad del bucket order con ruido respecto al bucket order original.
 Esta métrica se basa en la idea de evaluar ambos bucket orders (el original y el con ruido) sobre la matriz de precedencias original C, y medir cuánto empeora el bucket order con ruido respecto al bucket order original.
 """
 
