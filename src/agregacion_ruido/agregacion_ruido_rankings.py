@@ -3,13 +3,26 @@ Estrategias de agregación de ruido sobre rankings individuales.
 
 Este módulo implementa las estrategias de perturbación aplicadas sobre los rankings individuales.
 Hay una única técnica de perturbación, que selecciona aleatoriamente una de las siguientes operaciones elementales:
-- Intercambio: se seleccionan dos ítems al azar y se intercambian sus posiciones.
+- Intercambio: se seleccionan dos ítems pertenecientes a buckets distintos y se intercambian sus posiciones.
 - Movimiento: se selecciona un ítem al azar y se desplaza un número aleatorio de buckets hacia arriba o hacia abajo.
 - Empate: se selecciona un bucket al azar. Si tiene varios ítems, se separa uno de ellos en un nuevo bucket. Si tiene un único ítem, se toma un ítem de otro bucket y se añade al bucket actual, creando o ampliando un empate.
-- Local: se selecciona un tramo consecutivo del ranking y se invierte el orden de sus buckets. Los empates dentro de cada bucket se mantienen."""
+- Local: se selecciona un tramo consecutivo del ranking y se invierte el orden de sus buckets. Los empates dentro de cada bucket se mantienen.
+
+La perturbación se controla mediante dos niveles:
+
+1. El parámetro b indica la probabilidad de seleccionar cada ranking individual
+   para ser perturbado.
+
+2. Una vez seleccionado un ranking, se aplica un número de cambios proporcional
+   a su tamaño. Por defecto, se modifica aproximadamente el 25% de sus
+   alternativas, garantizando al menos un cambio cuando el ranking tiene dos
+   o más alternativas.
+
+"""
+import math 
 
 from data.preflib_to_C import construir_C_desde_rankings
-
+PROPORCION_CAMBIOS = 0.25
 
 def eliminar_buckets_vacios(ranking):
     """Elimina los buckets que se hayan quedado sin elementos después de aplicar ruido."""
@@ -25,30 +38,47 @@ def obtener_lista_items(ranking):
     """Obtiene todos los ítems del ranking, ignorando la separación en buckets."""
     return [item for bucket in ranking for item in bucket]
 
+def calcular_num_cambios_ranking(ranking, proporcion=PROPORCION_CAMBIOS):
+        """
+        Calcula el número de cambios que se aplican a un ranking seleccionado para perturbación.
+        """
+        n_items = len(obtener_lista_items(ranking))
+
+        if n_items < 2:
+            return 0
+
+        return max(1, math.ceil(proporcion * n_items))
+
 
 def aplicar_intercambio(ranking, num_cambios, rng):
     """
-    Aplica la estrategia de intercambio.
-    En cada cambio se seleccionan dos ítems al azar y se intercambian sus posiciones.
-    Si estaban en buckets distintos, cada ítem pasa al bucket del otro.
+    Aplica la estrategia de intercambio efectivo.
+
+    En cada cambio se seleccionan dos buckets distintos y se escoge
+    un ítem de cada uno. Después se intercambian ambos ítems.
+    De este modo, si existen al menos dos buckets no vacíos, el cambio
+    modifica necesariamente alguna relación de precedencia.
     """
     ranking = copiar_ranking(ranking)
-    items = obtener_lista_items(ranking)
-
-    if len(items) < 2:
-        return ranking
 
     for _ in range(num_cambios):
-        u, v = rng.choice(items, size=2, replace=False)
+        ranking = eliminar_buckets_vacios(ranking)
 
-        pos_u = next(i for i, bucket in enumerate(ranking) if u in bucket)
-        pos_v = next(i for i, bucket in enumerate(ranking) if v in bucket)
+        if len(ranking) < 2:
+            break
+
+        pos_u, pos_v = rng.choice(len(ranking), size=2, replace=False)
+
+        u = rng.choice(ranking[pos_u])
+        v = rng.choice(ranking[pos_v])
 
         ranking[pos_u].remove(u)
         ranking[pos_v].remove(v)
 
         ranking[pos_u].append(v)
         ranking[pos_v].append(u)
+
+        ranking = eliminar_buckets_vacios(ranking)
 
     return eliminar_buckets_vacios(ranking)
 
@@ -66,14 +96,14 @@ def aplicar_movimiento(ranking, num_cambios, rng):
     """
      
     ranking = copiar_ranking(ranking)
-    if len(ranking) < 2:
-        return ranking
     
     for _ in range(num_cambios):
-        items = obtener_lista_items(ranking)
-        if len(items) == 0 or len(ranking) < 2:
-            break
+        ranking = eliminar_buckets_vacios(ranking)
 
+        if len(ranking) < 2:
+            break
+        
+        items = obtener_lista_items(ranking)
         item = rng.choice(items)
         pos_actual = next(i for i, bucket in enumerate(ranking) if item in bucket)
         movimiento = rng.integers(1, len(ranking))
@@ -98,8 +128,9 @@ def aplicar_empate(ranking, num_cambios, rng):
 
     for _ in range(num_cambios):
 
-        if len(ranking) == 0:
-            return ranking
+        ranking = eliminar_buckets_vacios(ranking)
+        if len(obtener_lista_items(ranking)) < 2:
+            break
     
         pos = rng.integers(0, len(ranking))
         bucket = ranking[pos]
@@ -140,21 +171,16 @@ def aplicar_local(ranking, num_cambios, rng):
         return ranking
 
     for _ in range(num_cambios):
+        ranking = eliminar_buckets_vacios(ranking)
+
+        if len(ranking) < 2:
+            break
+
         i = rng.integers(0, len(ranking) - 1)
         j = rng.integers(i + 2, len(ranking) + 1)
         ranking[i:j] = ranking[i:j][::-1]
 
     return eliminar_buckets_vacios(ranking)
-
-
-def calcular_num_cambios(b, n_items):
-    """
-    Convierte el parámetro b en el número de cambios que se aplican a cada ranking.
-    Si b es positivo, se fuerza al menos un cambio para evitar que valores pequeños de b no modifiquen rankings con pocos ítems.
-    """
-    if b == 0:
-        return 0
-    return max(1, int(round(b * n_items)))
 
 
 def aplicar_perturbacion_ranking(ranking, num_cambios, rng):
@@ -164,8 +190,18 @@ def aplicar_perturbacion_ranking(ranking, num_cambios, rng):
     Para cada ranking se selecciona al azar una de las operaciones básicas:
     intercambio, movimiento, empate o local.
     """
-    tecnicas_base = ["intercambio", "movimiento", "empate", "local"]
-    tecnica = rng.choice(tecnicas_base)
+ 
+    ranking = eliminar_buckets_vacios(ranking)
+
+    if num_cambios == 0 or len(obtener_lista_items(ranking)) < 2:
+        return copiar_ranking(ranking)
+    
+    #Si solo hay un bucket, solo la técnica de empate puede producir un cambio real
+    if len(ranking) < 2: 
+        tecnica = "empate"
+    else:
+        tecnicas_base = ["intercambio", "movimiento", "empate", "local"]
+        tecnica = rng.choice(tecnicas_base)
 
     if tecnica == "intercambio":
         return aplicar_intercambio(ranking, num_cambios, rng)
@@ -185,26 +221,23 @@ def aplicar_ruido_rankings(rankings, num_alternativas, b, rng):
         Aplica ruido aleatorio sobre rankings individuales y reconstruye
         la matriz C.
 
-        b representa la probabilidad de perturbar cada ranking individual.
-
-        Cuando un ranking es seleccionado para ser perturbado, se aplica
-        una única operación elemental aleatoria. De esta forma, b controla
-        la proporción esperada de rankings modificados, mientras que la
-        intensidad local de cada perturbación se mantiene fija.
+        Las operaciones están diseñadas para producir modificaciones efectivas
+        sobre el bucket order siempre que la estructura del ranking lo permita.
+        No obstante, varias operaciones consecutivas pueden compensarse entre sí;
+        por ejemplo, dos intercambios sucesivos podrían recuperar el estado inicial.
+        Por tanto, b no garantiza exactamente la proporción final de rankings
+        distintos al original.
         """
         if b < 0 or b > 1:
             raise ValueError("El parámetro b debe estar en el intervalo [0, 1].")
 
-        num_cambios = 1
+
         rankings_ruido = []
 
         for ranking in rankings:
             if rng.random() < b:
-                ranking_ruido = aplicar_perturbacion_ranking(
-                    ranking,
-                    num_cambios,
-                    rng
-                )
+                num_cambios = calcular_num_cambios_ranking(ranking)
+                ranking_ruido = aplicar_perturbacion_ranking(ranking,num_cambios,rng)
             else:
                 ranking_ruido = copiar_ranking(ranking)
 
