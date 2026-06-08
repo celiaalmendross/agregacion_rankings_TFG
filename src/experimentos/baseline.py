@@ -1,3 +1,6 @@
+"""
+Este módulo contiene el código para ejecutar el baseline sobre un dataset. El baseline consiste en resolver el OBOP mediante programación lineal entera, y sin añadir ruido."""
+
 import time
 
 from experimentos.utils_experiments import (
@@ -5,8 +8,6 @@ from experimentos.utils_experiments import (
     resolver_obop_completo,
     buckets_to_json
 )
-
-
 from obop.obop_ilp import normalizar_obj_value
 
 COLUMNAS_BASELINE = [
@@ -20,7 +21,6 @@ COLUMNAS_BASELINE = [
     "tiempo",
     "buckets"
 ]
-
 
 def ejecutar_dataset(dataset_path):
     """
@@ -38,7 +38,7 @@ def ejecutar_dataset(dataset_path):
         "n": profile.num_alternativas,
         "m": profile.num_voters,
         "obj_value": obj_value,
-        "obj_value_nor": normalizar_obj_value(obj_value, profile.num_alternativas),
+        "obj_value_norm": normalizar_obj_value(obj_value, profile.num_alternativas),
         "n_buckets": len(buckets),
         "tiempo": fin - inicio,
         "buckets": buckets_to_json(buckets)

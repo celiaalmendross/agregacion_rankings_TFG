@@ -1,8 +1,18 @@
+"""
+Estrategias de agregación de ruido sobre la matriz de precedencias C.
+
+Este módulo implementa las estrategias de perturbación aplicadas directamente
+sobre la matriz C utilizada por el OBOP. 
+
+Las técnicas implementadas difieren únicamente en qué pares de alternativas se
+perturban. En todos los casos, el ruido añadido sigue una distribución de
+Laplace centrada en cero, y el parámetro b controla su escala.
+"""
 import numpy as np
 
 from data.preflib_to_C import validar_C
 
-
+#Parámetros internos fijados para no añadir más dimensiones experimentales.
 PROBABILIDAD_ALEATORIA = 0.30
 UMBRAL_CERCA_EMPATE = 0.10
 

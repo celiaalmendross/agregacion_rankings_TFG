@@ -1,3 +1,11 @@
+"""
+Ejecución de la simulación federada por matrices locales.
+
+Cada ejecución trabaja sobre una única instancia PrefLib. Los rankings se dividen
+entre varios clientes, cada cliente construye su matriz local, se introduce ruido
+local sobre dichas matrices y el servidor agrega las matrices perturbadas.
+"""
+
 import time
 
 import numpy as np
@@ -7,21 +15,21 @@ from experimentos.utils_experiments import (
     resolver_obop_completo,
     buckets_to_json,
     parse_lista_float,
-    parse_lista_int
+    parse_lista_int,
 )
 
-from data.preflib_to_C import construir_C_desde_rankings, validar_C
+from data.preflib_to_C import validar_C
 
-from metricas.kendall_tau import kendall_tau_b
-from metricas.perdida_calidad import perdida_calidad, distancia_bucket_C
+from metricas.metricas_federada import (
+    calcular_metricas_globales_federadas,
+    calcular_metricas_cliente_federado,
+)
 
 from federado.agregacion_federada import (
-    completar_rankings_con_bucket_final,
     dividir_rankings_en_clientes,
-    ejecutar_federado_matrices,
-    ejecutar_federado_rankings,
+    construir_clientes_locales,
+    perturbar_y_agregar_clientes,
 )
-
 
 COLUMNAS_FEDERADO = [
     "instancia",
@@ -29,273 +37,201 @@ COLUMNAS_FEDERADO = [
     "n",
     "m",
     "num_clientes",
-    "modo_federado",
+    "cliente_id",
+    "m_cliente",
+    "metodo_federado",
     "tecnica",
-    "parametros",
+    "b",
     "seed",
-    "obj_value_central",
-    "obj_value_federado",
-    "perdida",
-    "n_buckets_central",
+    "kendall_tau_global",
+    "obj_local",
+    "obj_federado_en_cliente",
+    "perdida_local",
+    "obj_local_norm",
+    "obj_federado_en_cliente_norm",
+    "perdida_local_norm",
+    "distancia_entrada_local",
+    "distancia_entrada_global",
+    "distancia_salida_global",
+    "sensibilidad_global",
+    "n_buckets_local",
     "n_buckets_federado",
-    "kendall_tau",
-    "buckets_central",
+    "buckets_local",
     "buckets_federado",
-    "tiempo"
+    "tiempo",
 ]
 
 
 TECNICAS_FED_MATRICES = {"todos", "aleatoria", "cerca_empate"}
 
-MODOS_FEDERADOS_VALIDOS = {"matrices", "rankings", "todos"}
 
-def parse_modo_federado(texto):
-    modo = texto.strip().lower()
+def parse_tecnica_federada(texto_tecnica):
+    """
+    Valida la técnica de ruido local sobre matrices.
+    """
+    tecnica = texto_tecnica.strip().lower()
 
-    if modo not in MODOS_FEDERADOS_VALIDOS:
+    if tecnica not in TECNICAS_FED_MATRICES:
         raise ValueError(
-            f"Modo federado no válido: {modo}. "
-            f"Usa uno de: {sorted(MODOS_FEDERADOS_VALIDOS)}"
+            f"Técnica federada no válida: {tecnica}. "
+            f"Técnicas disponibles: {sorted(TECNICAS_FED_MATRICES)}"
         )
 
-    return modo
+    return tecnica
 
-def configuraciones_federadas(modo, texto_tecnica=None):
+def obtener_lista_num_clientes(texto_num_clientes, m_real):
     """
-    Devuelve pares (modo_federado, tecnica).
+    Valida los valores de K indicados por terminal.
+    """
+    lista = parse_lista_int(texto_num_clientes)
+    lista_validada = []
 
-    En modo rankings no existe técnica como parámetro. Se usa 'aleatoria'
-    solo como etiqueta en el CSV.
-    """
-    if modo == "rankings":
-        if texto_tecnica is not None:
+    for k in lista:
+        if k <= 0:
+            raise ValueError("El número de clientes debe ser mayor que 0.")
+
+        if k > m_real:
             raise ValueError(
-                "El modo federado rankings no admite --tecnica. "
-                "Usa solo: --modo rankings --b ..."
+                f"num_clientes={k} no puede ser mayor que el número de rankings ({m_real})."
             )
 
-        return [("rankings", "aleatoria")]
+        lista_validada.append(k)
 
-    if modo == "matrices":
-        tecnicas_disponibles = TECNICAS_FED_MATRICES
+    return lista_validada
 
-    elif modo == "todos":
-        if texto_tecnica is not None:
-            raise ValueError(
-                "Con --modo todos no indiques --tecnica."
-            )
-
-        return (
-            [("matrices", tecnica) for tecnica in sorted(TECNICAS_FED_MATRICES)]
-            + [("rankings", "aleatoria")]
-        )
-
-    else:
-        raise ValueError(f"Modo federado no reconocido: {modo}")
-
-    if texto_tecnica is None:
-        return [
-            (modo, tecnica)
-            for tecnica in sorted(tecnicas_disponibles)
-        ]
-
-    tecnicas = [
-        tecnica.strip()
-        for tecnica in texto_tecnica.split(",")
-        if tecnica.strip()
-    ]
-
-    invalidas = [
-        tecnica for tecnica in tecnicas
-        if tecnica not in tecnicas_disponibles
-    ]
-
-    if invalidas:
-        raise ValueError(
-            f"Técnicas no válidas para el modo {modo}: {invalidas}. "
-            f"Técnicas disponibles: {sorted(tecnicas_disponibles)}"
-        )
-
-    return [
-        (modo, tecnica)
-        for tecnica in sorted(set(tecnicas))
-    ]
-
-
-def crear_fila_federado(
+def crear_filas_clientes(
     dataset_path,
     profile,
+    m_real,
     num_clientes,
-    modo_federado,
+    metodo_federado,
     tecnica,
     b,
     seed,
-    C_central,
-    obj_central,
-    buckets_central,
-    obj_federado,
+    metricas_globales,
     buckets_federado,
+    clientes_resultado,
     tiempo,
 ):
     """
-    Crea una fila del CSV comparando el consenso centralizado
-    con el consenso federado.
+    Crea una fila por cliente para una configuración federada.
     """
-    tau = kendall_tau_b(buckets_central, buckets_federado)
+    filas = []
 
-    perdida = perdida_calidad(
-        buckets_central,
-        buckets_federado,
-        C_central,
-    )
-
-    return {
-        "instancia": dataset_path.name,
-        "tipo": profile.data_type,
-        "n": profile.num_alternativas,
-        "m": profile.num_voters,
-        "num_clientes": num_clientes,
-        "modo_federado": modo_federado,
-        "tecnica": tecnica,
-        "parametros": f"b={b}",
-        "seed": seed,
-        "obj_value_central": obj_central,
-        "obj_value_federado": obj_federado,
-        "perdida": perdida,
-        "n_buckets_central": len(buckets_central),
-        "n_buckets_federado": len(buckets_federado),
-        "kendall_tau": tau,
-        "buckets_central": buckets_to_json(buckets_central),
-        "buckets_federado": buckets_to_json(buckets_federado),
-        "tiempo": tiempo
-    }
-
-
-def ejecutar_configuracion_federada(
-    rankings_completos,
-    C_central,
-    profile,
-    dataset_path,
-    num_clientes,
-    modo_federado,
-    tecnica,
-    b,
-    seed,
-    obj_central,
-    buckets_central,
-):
-    """
-    Ejecuta una configuración concreta del experimento federado.
-
-    Puede ser:
-    - modo_federado = "matrices":
-        cada cliente calcula C_i, la perturba y manda C_i perturbada.
-    - modo_federado = "rankings":
-        cada cliente perturba sus rankings y manda rankings perturbados.
-    """
-    if b < 0:
-        raise ValueError("El valor de b debe ser no negativo.")
-
-    rng = np.random.default_rng(seed)
-
-    clientes = dividir_rankings_en_clientes(
-        rankings=rankings_completos,
-        num_clientes=num_clientes,
-        rng=rng,
-    )
-
-    inicio = time.perf_counter()
-
-    if modo_federado == "matrices":
-        C_federada = ejecutar_federado_matrices(
-            clientes=clientes,
-            num_alternativas=profile.num_alternativas,
-            b=b,
-            tecnica=tecnica,
-            rng=rng,
+    for cliente in clientes_resultado:
+        metricas_cliente = calcular_metricas_cliente_federado(
+            C_i=cliente["C_i"],
+            C_i_ruido=cliente["C_i_ruido"],
+            buckets_federado=buckets_federado,
+            obj_local=cliente["obj_local"],
         )
 
-    elif modo_federado == "rankings":
-        C_federada = ejecutar_federado_rankings(
-            clientes=clientes,
-            num_alternativas=profile.num_alternativas,
-            b=b,
-            rng=rng,
-        )
+        fila = {
+            "instancia": dataset_path.name,
+            "tipo": profile.data_type,
+            "n": profile.num_alternativas,
+            "m": m_real,
+            "num_clientes": num_clientes,
+            "cliente_id": cliente["cliente_id"],
+            "m_cliente": cliente["m_cliente"],
+            "metodo_federado": metodo_federado,
+            "tecnica": tecnica,
+            "b": b,
+            "seed": seed,
+            "kendall_tau_global": metricas_globales["kendall_tau_global"],
+            "distancia_entrada_global": metricas_globales["distancia_entrada_global"],
+            "distancia_salida_global": metricas_globales["distancia_salida_global"],
+            "sensibilidad_global": metricas_globales["sensibilidad_global"],
+            **metricas_cliente,
+            "n_buckets_local": len(cliente["buckets_local"]),
+            "n_buckets_federado": len(buckets_federado),
+            "buckets_local": buckets_to_json(cliente["buckets_local"]),
+            "buckets_federado": buckets_to_json(buckets_federado),
+            "tiempo": tiempo,
+        }
 
-    else:
-        raise ValueError(f"Modo federado no reconocido: {modo_federado}")
+        filas.append(fila)
 
-    C_federada = validar_C(C_federada)
-
-    obj_federado, buckets_federado = resolver_obop_completo(C_federada)
-
-    fin = time.perf_counter()
-
-    return crear_fila_federado(
-        dataset_path=dataset_path,
-        profile=profile,
-        num_clientes=num_clientes,
-        modo_federado=modo_federado,
-        tecnica=tecnica,
-        b=b,
-        seed=seed,
-        C_central=C_central,
-        obj_central=obj_central,
-        buckets_central=buckets_central,
-        obj_federado=obj_federado,
-        buckets_federado=buckets_federado,
-        tiempo=fin - inicio,
-    )
+    return filas
 
 
 def ejecutar_dataset_federado(dataset_path, args):
     """
-    Ejecuta todas las configuraciones federadas sobre un dataset.
+    Ejecuta la simulación federada para una instancia PrefLib.
     """
-    _, rankings, profile = cargar_dataset(dataset_path)
+    C_central, rankings, profile = cargar_dataset(dataset_path)
 
-    rankings_completos = completar_rankings_con_bucket_final(
-        rankings=rankings,
-        num_alternativas=profile.num_alternativas,
-    )
-
-    C_central = construir_C_desde_rankings(
-        rankings_completos,
-        profile.num_alternativas,
-    )
-
+    m_real = len(rankings)
     C_central = validar_C(C_central)
 
-    obj_central, buckets_central = resolver_obop_completo(C_central)
+    _, buckets_central = resolver_obop_completo(C_central)
 
-    modo = parse_modo_federado(args.modo)
-    configuraciones = configuraciones_federadas(modo, args.tecnica)
     seeds = parse_lista_int(args.seeds)
     valores_b = parse_lista_float(args.b)
-    clientes_lista = parse_lista_int(args.clientes)
+    tecnica = parse_tecnica_federada(args.tecnica)
+    lista_num_clientes = obtener_lista_num_clientes(args.num_clientes, m_real)
 
     filas = []
 
-    for num_clientes in clientes_lista:
+    for num_clientes in lista_num_clientes:
         for seed in seeds:
-            for modo_federado, tecnica in configuraciones:
+            rng_division = np.random.default_rng(seed)
 
-                for b in valores_b:
-                    fila = ejecutar_configuracion_federada(
-                        rankings_completos=rankings_completos,
-                        C_central=C_central,
-                        profile=profile,
+            clientes = dividir_rankings_en_clientes(
+                rankings=rankings,
+                num_clientes=num_clientes,
+                rng=rng_division,
+            )
+
+            clientes_locales = construir_clientes_locales(
+                clientes=clientes,
+                num_alternativas=profile.num_alternativas,
+            )
+
+            for cliente in clientes_locales:
+                obj_local, buckets_local = resolver_obop_completo(cliente["C_i"])
+                cliente["obj_local"] = obj_local
+                cliente["buckets_local"] = buckets_local
+
+            for b in valores_b:
+                rng_ruido = np.random.default_rng(seed)
+
+                inicio = time.perf_counter()
+
+                C_federada, clientes_resultado = perturbar_y_agregar_clientes(
+                    clientes_locales=clientes_locales,
+                    b=b,
+                    tecnica=tecnica,
+                    rng=rng_ruido,
+                )
+
+                C_federada = validar_C(C_federada)
+                _, buckets_federado = resolver_obop_completo(C_federada)
+
+                metricas_globales = calcular_metricas_globales_federadas(
+                    C_central=C_central,
+                    C_federada=C_federada,
+                    buckets_central=buckets_central,
+                    buckets_federado=buckets_federado,
+                )
+
+                fin = time.perf_counter()
+
+                filas.extend(
+                    crear_filas_clientes(
                         dataset_path=dataset_path,
+                        profile=profile,
+                        m_real=m_real,
                         num_clientes=num_clientes,
-                        modo_federado=modo_federado,
+                        metodo_federado="matrices",
                         tecnica=tecnica,
                         b=b,
                         seed=seed,
-                        obj_central=obj_central,
-                        buckets_central=buckets_central,
+                        metricas_globales=metricas_globales,
+                        buckets_federado=buckets_federado,
+                        clientes_resultado=clientes_resultado,
+                        tiempo=fin - inicio,
                     )
-
-                    filas.append(fila)
+                )
 
     return filas

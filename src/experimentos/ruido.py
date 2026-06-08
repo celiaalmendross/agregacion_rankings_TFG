@@ -1,6 +1,18 @@
+"""
+Ejecución de experimentos centralizados con ruido.
+
+Cada ejecución trabaja sobre una única instancia PrefLib y una configuración
+explícita: método de perturbación, técnica, valores de b y semillas. El objetivo
+es comparar el bucket order original con el bucket order obtenido tras introducir
+ruido.
+"""
+
 import time
 import numpy as np
 
+from agregacion_ruido.agregacion_ruido_matriz import perturbar_matriz
+from agregacion_ruido.agregacion_ruido_rankings import aplicar_ruido_rankings
+from agregacion_ruido.agregacion_ruido_scores_latentes import aplicar_ruido_scores
 from experimentos.utils_experiments import (
     cargar_dataset,
     resolver_obop_completo,
@@ -8,14 +20,8 @@ from experimentos.utils_experiments import (
     parse_lista_float,
     parse_lista_int,
 )
-
 from obop.obop_ilp import normalizar_obj_value
-
-from agregacion_ruido.agregacion_ruido_matriz import perturbar_matriz
-from agregacion_ruido.agregacion_ruido_rankings import aplicar_ruido_rankings
-from agregacion_ruido.agregacion_ruido_scores_latentes import aplicar_ruido_scores
-
-from metricas.distancia_ruido import distancia_ruido
+from metricas.metricas_ruido import distancia_bucket_orders, sensibilidad_ruido, distancia_matrices
 from metricas.kendall_tau import kendall_tau_b
 from metricas.perdida_calidad import perdida_calidad
 
@@ -38,20 +44,25 @@ COLUMNAS_RUIDO = [
     "tiempo",
     "kendall_tau",
     "perdida",
-    "distancia_ruido",
+    "distancia_entrada",
+    "distancia_salida",
+    "sensibilidad",
     "buckets_original",
     "buckets_ruido",
 ]
 
 
 TECNICAS_MATRIZ = {"todos", "aleatoria", "cerca_empate"}
+TECNICAS_RANKINGS = {"aleatoria"}
 TECNICAS_SCORES = {"logistic", "probit"}
 
-METODOS_VALIDOS = {"matriz", "rankings", "scores", "todos"}
-TODAS_TECNICAS = TECNICAS_MATRIZ | TECNICAS_SCORES
+METODOS_VALIDOS = {"matriz", "rankings", "scores"}
 
 
 def parse_metodo(texto):
+    """
+    Valida el método de perturbación indicado por terminal.
+    """
     metodo = texto.strip().lower()
 
     if metodo not in METODOS_VALIDOS:
@@ -62,76 +73,37 @@ def parse_metodo(texto):
 
     return metodo
 
-
-def valores_b(args):
-    return parse_lista_float(args.b)
-
-def configuraciones_por_metodo(metodo, texto_tecnica=None):
+def parse_tecnica(metodo, texto_tecnica):
     """
-    Devuelve pares (metodo, tecnica).
+    Valida la técnica asociada al método de ruido seleccionado.
 
-    En el método rankings no existe técnica como parámetro experimental.
-    Se devuelve tecnica='aleatoria' solo como etiqueta para el CSV.
+    En esta versión final no se ejecutan técnicas por defecto: la técnica debe
+    indicarse siempre desde terminal para que cada experimento sea explícito.
     """
-    if metodo == "rankings":
-        if texto_tecnica is not None:
-            raise ValueError(
-                "El método rankings no admite --tecnica. "
-                "Usa solo: --metodo rankings --b ..."
-            )
-
-        return [("rankings", "aleatoria")]
+    tecnica = texto_tecnica.strip().lower()
 
     if metodo == "matriz":
-        tecnicas_disponibles = TECNICAS_MATRIZ
-
+        tecnicas_validas = TECNICAS_MATRIZ
+    elif metodo == "rankings":
+        tecnicas_validas = TECNICAS_RANKINGS
     elif metodo == "scores":
-        tecnicas_disponibles = TECNICAS_SCORES
-
-    elif metodo == "todos":
-        if texto_tecnica is not None:
-            raise ValueError(
-                "Con --metodo todos no indiques --tecnica. "
-                "Se ejecutan automáticamente las técnicas de matriz, rankings y scores."
-            )
-
-        return (
-            [("matriz", tecnica) for tecnica in sorted(TECNICAS_MATRIZ)]
-            + [("rankings", "aleatoria")]
-            + [("scores", tecnica) for tecnica in sorted(TECNICAS_SCORES)]
-        )
-
+        tecnicas_validas = TECNICAS_SCORES
     else:
         raise ValueError(f"Método no reconocido: {metodo}")
 
-    if texto_tecnica is None:
-        return [
-            (metodo, tecnica)
-            for tecnica in sorted(tecnicas_disponibles)
-        ]
-
-    tecnicas = [
-        tecnica.strip()
-        for tecnica in texto_tecnica.split(",")
-        if tecnica.strip()
-    ]
-
-    invalidas = [
-        tecnica for tecnica in tecnicas
-        if tecnica not in tecnicas_disponibles
-    ]
-
-    if invalidas:
+    if tecnica not in tecnicas_validas:
         raise ValueError(
-            f"Técnicas no válidas para el método {metodo}: {invalidas}. "
-            f"Técnicas disponibles: {sorted(tecnicas_disponibles)}"
+            f"Técnica no válida para el método {metodo}: {tecnica}. "
+            f"Técnicas disponibles: {sorted(tecnicas_validas)}"
         )
 
-    return [
-        (metodo, tecnica)
-        for tecnica in sorted(set(tecnicas))
-    ]
+    return tecnica
 
+def obtener_valores_b(args):
+    """
+    Obtiene los valores de b indicados por la terminal.
+    """
+    return parse_lista_float(args.b)
 
 def crear_fila_ruido(
     dataset_path,
@@ -149,12 +121,20 @@ def crear_fila_ruido(
     tiempo,
 ):
     """
-    Crea una fila del CSV comparando el consenso original
-    con el consenso obtenido tras introducir ruido.
+    Crea una fila del CSV comparando el bucket order original y el perturbado.
+
+    Se registran métricas sobre la entrada, sobre la salida y sobre la pérdida
+    de calidad del bucket order perturbado respecto a la matriz original.
     """
     tau = kendall_tau_b(buckets_original, buckets_ruido)
     perdida = perdida_calidad(buckets_original, buckets_ruido, C_original)
-    distancia = distancia_ruido(C_original, C_ruido)
+    distancia_entrada = distancia_matrices(C_original, C_ruido)
+    distancia_salida = distancia_bucket_orders(
+        buckets_original,
+        buckets_ruido,
+        profile.num_alternativas,
+    )
+    sensibilidad = sensibilidad_ruido(distancia_entrada, distancia_salida)
 
     return {
         "instancia": dataset_path.name,
@@ -172,9 +152,11 @@ def crear_fila_ruido(
         "n_buckets": len(buckets_original),
         "n_buckets_ruido": len(buckets_ruido),
         "tiempo": tiempo,
-        "distancia_ruido": distancia,
         "kendall_tau": tau,
         "perdida": perdida,
+        "distancia_entrada": distancia_entrada,
+        "distancia_salida": distancia_salida,
+        "sensibilidad": sensibilidad,
         "buckets_original": buckets_to_json(buckets_original),
         "buckets_ruido": buckets_to_json(buckets_ruido),
     }
@@ -190,6 +172,9 @@ def ejecutar_ruido_matriz(
     obj_original,
     buckets_original,
 ):
+    """
+    Aplica ruido directamente sobre la matriz de precedencias C.
+    """
     rng = np.random.default_rng(seed)
     inicio = time.perf_counter()
 
@@ -225,6 +210,9 @@ def ejecutar_ruido_rankings(
     obj_original,
     buckets_original,
 ):
+    """
+    Aplica ruido sobre rankings individuales y reconstruye la matriz C perturbada.
+    """
     rng = np.random.default_rng(seed)
     inicio = time.perf_counter()
 
@@ -232,9 +220,8 @@ def ejecutar_ruido_rankings(
         rankings=rankings,
         num_alternativas=profile.num_alternativas,
         b=b,
-        rng=rng
+        rng=rng,
     )
-
     obj_ruido, buckets_ruido = resolver_obop_completo(C_ruido)
 
     fin = time.perf_counter()
@@ -266,6 +253,9 @@ def ejecutar_ruido_scores(
     obj_original,
     buckets_original,
 ):
+    """
+    Aplica la estrategia exploratoria basada en scores latentes.
+    """
     rng = np.random.default_rng(seed)
     inicio = time.perf_counter()
 
@@ -303,9 +293,16 @@ def ejecutar_configuracion_ruido(
     obj_original,
     buckets_original,
 ):
+    """
+    Ejecuta una configuración concreta de ruido.
+    """
     if b < 0:
         raise ValueError("El valor de b debe ser no negativo.")
 
+    if metodo == "rankings" and b > 1:
+        raise ValueError(
+            "En el método rankings, b representa una probabilidad y debe estar en [0, 1]."
+        )
 
     if metodo == "matriz":
         return ejecutar_ruido_matriz(
@@ -348,34 +345,32 @@ def ejecutar_configuracion_ruido(
 
 def ejecutar_dataset_ruido(dataset_path, args):
     """
-    Ejecuta todas las configuraciones de ruido sobre un dataset.
+    Ejecuta las configuraciones de ruido indicadas sobre una instancia PrefLib.
     """
     C, rankings, profile = cargar_dataset(dataset_path)
-
     obj_original, buckets_original = resolver_obop_completo(C)
 
     metodo = parse_metodo(args.metodo)
-    configuraciones = configuraciones_por_metodo(metodo, args.tecnica)
+    tecnica = parse_tecnica(metodo, args.tecnica)
     seeds = parse_lista_int(args.seeds)
+    valores_b = obtener_valores_b(args)
 
     filas = []
 
     for seed in seeds:
-        for metodo_config, tecnica in configuraciones:
-            for b in valores_b(args):
-                fila = ejecutar_configuracion_ruido(
-                    C=C,
-                    rankings=rankings,
-                    profile=profile,
-                    dataset_path=dataset_path,
-                    metodo=metodo_config,
-                    tecnica=tecnica,
-                    b=b,
-                    seed=seed,
-                    obj_original=obj_original,
-                    buckets_original=buckets_original,
-                )
-
-                filas.append(fila)
+        for b in valores_b:
+            fila = ejecutar_configuracion_ruido(
+                C=C,
+                rankings=rankings,
+                profile=profile,
+                dataset_path=dataset_path,
+                metodo=metodo,
+                tecnica=tecnica,
+                b=b,
+                seed=seed,
+                obj_original=obj_original,
+                buckets_original=buckets_original,
+            )
+            filas.append(fila)
 
     return filas

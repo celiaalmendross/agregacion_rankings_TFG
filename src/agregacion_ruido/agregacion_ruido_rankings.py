@@ -1,3 +1,13 @@
+"""
+Estrategias de agregación de ruido sobre rankings individuales.
+
+Este módulo implementa las estrategias de perturbación aplicadas sobre los rankings individuales.
+Hay una única técnica de perturbación, que selecciona aleatoriamente una de las siguientes operaciones elementales:
+- Intercambio: se seleccionan dos ítems al azar y se intercambian sus posiciones.
+- Movimiento: se selecciona un ítem al azar y se desplaza un número aleatorio de buckets hacia arriba o hacia abajo.
+- Empate: se selecciona un bucket al azar. Si tiene varios ítems, se separa uno de ellos en un nuevo bucket. Si tiene un único ítem, se toma un ítem de otro bucket y se añade al bucket actual, creando o ampliando un empate.
+- Local: se selecciona un tramo consecutivo del ranking y se invierte el orden de sus buckets. Los empates dentro de cada bucket se mantienen."""
+
 from data.preflib_to_C import construir_C_desde_rankings
 
 

@@ -1,3 +1,10 @@
+"""
+Estrategias de agregación de ruido sobre scores latentes.
+
+Este módulo implementa las estrategias de perturbación aplicadas sobre los scores latentes.
+La idea parte de la contrucción de scores latentes a partir de la matriz de precedencias. Estos scores se perturban añadiendo ruido de Laplace y finalmente se reconstruye una nueva matriz de precedencias a partir de los scores perturbados.
+"""
+
 import numpy as np
 from scipy.stats import norm
 

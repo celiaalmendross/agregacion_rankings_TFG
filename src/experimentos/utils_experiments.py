@@ -1,3 +1,11 @@
+"""
+Utilidades comunes para los experimentos del TFG.
+
+Este módulo reúne funciones auxiliares usadas por los scripts experimentales:
+resolución de rutas, carga de una instancia PrefLib, resolución completa del
+OBOP, guardado de resultados en CSV y conversión de bucket orders a texto.
+"""
+
 from pathlib import Path
 import csv
 import json
@@ -7,13 +15,16 @@ from data.preflib_to_C import cargar_preflib_a_C
 from obop.obop_ilp import resolver_obop as resolver_obop_ilp
 from obop.bucket_order import reconstruir_bucket_order
 
-
+#Directorio raíz del proyecto. Se asume que este script está en src/experimentos/utils_experiments.py
 PROJECT_DIR = Path(__file__).resolve().parents[2] 
 
 EXTENSIONES = {".soc", ".soi", ".toc", ".toi"}
 
 
 def resolver_ruta(ruta):
+    """
+    Resuelve una ruta relativa al proyecto o una ruta absoluta.
+    """
     ruta = Path(ruta)
 
     if not ruta.is_absolute():
@@ -24,32 +35,29 @@ def resolver_ruta(ruta):
 
     return ruta
 
-
-def obtener_datasets(ruta, max_datasets=None):
+def resolver_dataset(ruta):
     """
-    Devuelve los datasets que se van a ejecutar.
-    Si la ruta es un fichero, devuelve solo ese fichero. 
-    Si es una carpeta, busca todos los ficheros PrefLib válidos y permite limitar la cantidad.
+    Valida que la ruta indicada corresponde a un único fichero PrefLib.
+
+    En la versión final de los experimentos no se ejecutan carpetas completas:
+    cada comando trabaja sobre una instancia concreta. Esto simplifica la
+    reproducción de los resultados y evita lógica adicional no utilizada en
+    la memoria.
     """
     ruta = resolver_ruta(ruta)
 
-    if ruta.is_file():
-        if ruta.suffix.lower() not in EXTENSIONES:
-            raise ValueError(f"Extensión no válida: {ruta.suffix}")
+    if not ruta.is_file():
+        raise ValueError(
+            "La ruta debe ser un fichero PrefLib concreto, no una carpeta."
+        )
 
-        return [ruta]
+    if ruta.suffix.lower() not in EXTENSIONES:
+        raise ValueError(
+            f"Extensión no válida: {ruta.suffix}. "
+            f"Extensiones admitidas: {sorted(EXTENSIONES)}"
+        )
 
-    datasets = []
-
-    for extension in EXTENSIONES:
-        datasets.extend(ruta.rglob(f"*{extension}"))
-
-    datasets = sorted(datasets)
-
-    if max_datasets is not None:
-        datasets = datasets[:max_datasets]
-
-    return datasets
+    return ruta
 
 
 def cargar_dataset(dataset_path):
@@ -62,7 +70,7 @@ def cargar_dataset(dataset_path):
 def resolver_obop_completo(C):
     """
     Resuelve el OBOP mediante ILP y reconstruye el bucket order final.
-    Devuelve el valor objetivo y el consenso en forma de buckets.
+    Devuelve el valor objetivo y el bucket order en forma de buckets.
     """
     n = C.shape[0]
 
@@ -74,7 +82,10 @@ def resolver_obop_completo(C):
 
 def crear_output_path(ruta, carpeta_salida, prefijo):
     """
-    Crea la ruta del CSV de salida usando el nombre del dataset y la fecha actual.
+    Construye la ruta del CSV de salida dentro de outputs/.
+
+    El nombre incluye el prefijo del experimento, el nombre de la ruta ejecutada
+    y una marca temporal para evitar sobrescribir resultados anteriores.
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     ruta = Path(ruta)
@@ -102,8 +113,18 @@ def buckets_to_json(buckets):
 
 
 def parse_lista_float(texto):
+    """
+    Convierte una cadena separa por comas en una lista de valores float.
+
+    Ejemplo: "0.1,0.5,0.3" -> [0.1, 0.5, 0.3]
+    """
     return [float(x.strip()) for x in texto.split(",") if x.strip()]
 
 
 def parse_lista_int(texto):
+    """
+    Convierte una cadena separa por comas en una lista de valores int.
+
+    Ejemplo: "1,5,3" -> [1, 5, 3]
+    """
     return [int(x.strip()) for x in texto.split(",") if x.strip()]

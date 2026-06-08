@@ -1,9 +1,16 @@
+"""
+Implementación del OBOP  mediante ILP.
+
+Este módulo contiene el modelo de Programación Lineal Entera utilizado en el pipeline experimental del TFG. A partir de una matriz de precedencias C, el modelo obtiene un bucket order que minimiza la distancia matricial L1 respecto a dicha matriz.
+
+La salida de este módulo no reconstruye directamente los buckets. Para ello se usa la función reconstruir_bucket_order del módulo bucket_order.py.
+"""
 from pyscipopt import Model, quicksum
 
 
 def resolver_obop(C, mostrar_solver=False):
     """
-    Resuelve el OBOP exacto mediante programación lineal entera.
+    Resuelve el OBOP exacto mediante Programación Lineal Entera.
 
     A partir de la matriz de precedencias C, obtiene la relación óptima entre los ítems permitiendo empates. 
     Devuelve el valor objetivo y las variables binarias de la solución.
@@ -11,8 +18,8 @@ def resolver_obop(C, mostrar_solver=False):
     n = C.shape[0]
 
     modelo = Model("OBOP")
-
-    if not mostrar_solver:
+    if not mostrar_solver: 
+        # Oculta la salida del solver para evitar saturar la consola con mensajes de SCIP.
         modelo.hideOutput()
 
   
@@ -93,5 +100,6 @@ def resolver_obop(C, mostrar_solver=False):
 def normalizar_obj_value(obj_value, n):
     """
     Normaliza el valor objetivo del OBOP dividiendo entre n(n-1).
+    Esta normalización permite comparar distancias obtenidas en instancias con diferente número de alternativas.
     """
     return float(obj_value / (n * (n - 1)))

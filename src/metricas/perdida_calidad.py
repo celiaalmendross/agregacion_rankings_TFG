@@ -1,3 +1,8 @@
+"""
+Métrica de pérdida de calidad del consenso con ruido respecto al consenso original.
+Esta métrica se basa en la idea de evaluar ambos bucket orders (el original y el con ruido) sobre la matriz de precedencias original C, y medir cuánto empeora el bucket order con ruido respecto al bucket order original.
+"""
+
 import numpy as np
 
 def construir_matriz_bucket(buckets, n):

@@ -4,14 +4,25 @@ Esta carpeta contiene los conjuntos de datos utilizados en los experimentos del 
 
 Los datos proceden de PrefLib y contienen perfiles de preferencias en distintos formatos de rankings, incluyendo rankings completos, rankings incompletos y rankings con empates.
 
-## Conjuntos incluidos
+## Colecciones incluidas
 
-- `00004_netflix/`: preferencias de usuarios en recomendación de películas.
 - `00006_skate/`: clasificaciones deportivas de competiciones de patinaje.
 - `00035_breakfast/`: preferencias individuales sobre opciones de desayuno.
 - `00068_poland_local_elections/`: preferencias electorales en elecciones locales polacas.
 - `00071_voter-autrement-in-situ/`: datos de votación del proyecto Voter Autrement.
-- `00023_takoma_park/`: elección municipal de Takoma Park.
+
+## Instancias seleccionadas
+
+Aunque las carpetas pueden contener más ficheros, la experimentación final se ha realizado sobre seis instancias concretas:
+
+| Colección | Instancia | Formato |
+|---|---|---|
+| `00006_skate/` | `00006-00000040.toc` | `.toc` |
+| `00035_breakfast/` | `00035-00000002.soc` | `.soc` |
+| `00035_breakfast/` | `00035-00000006.soc` | `.soc` |
+| `00068_poland_local_elections/` | `00068-00000301.soi` | `.soi` |
+| `00068_poland_local_elections/` | `00068-00000681.soi` | `.soi` |
+| `00071_voter-autrement-in-situ/` | `00071-00000033.toi` | `.toi` |
 
 ## Formatos utilizados
 
@@ -27,6 +38,3 @@ Estos ficheros se transforman internamente en una matriz de precedencias por par
 ## Nota sobre los datos
 
 Los datasets no son datos generados por el proyecto, sino conjuntos procedentes de PrefLib. Se incluyen únicamente con fines experimentales y de reproducibilidad del Trabajo Fin de Grado.
-
-## Colecciones para el entorno federado
-Las carpetas seleccion_federado_[instancia]/ contienen los dataset utilizados para las pruebas de la simulación federada. 

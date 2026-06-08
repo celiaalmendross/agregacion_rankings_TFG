@@ -4,12 +4,12 @@ Esta carpeta contiene los resultados generados por las ejecuciones del proyecto.
 
 Se han ejecutado los datasets:
 
-- 00004_netflix
-- 00006_skate
-- 00023-00000001.toi
-- 00035_breakfast
-- 00068_poland_local_elections
-- 00071_voter-autrement-in-situ
+- 00006_00000040.toc
+- 00035_00000002.soc
+- 00035_00000006.soc
+- 00068_00000301.soi
+- 00068_00000681.soi
+- 00071_00000033.toi
 
 ## baseline/
 
@@ -21,4 +21,4 @@ Contiene los resultados obtenidos tras aplicar estrategias de ruido y resolver d
 
 ## federado/
 
-Contiene los resultados obtenidos tras construir un entorno fedeado y resolver de nuevo el OBOP.
+Contiene los resultados obtenidos tras construir un entorno federado y resolver de nuevo el OBOP.
