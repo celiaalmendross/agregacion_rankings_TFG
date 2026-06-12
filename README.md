@@ -39,6 +39,8 @@ agregacion_rankings_TFG/
 │   ├── federado/
 │   └── README.md   
 │
+├── figs/
+│
 ├── src/
 │   ├── agregacion_ruido/
 │   │   ├── agregacion_ruido_matriz.py
