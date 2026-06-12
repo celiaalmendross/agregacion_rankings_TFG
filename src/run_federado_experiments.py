@@ -1,19 +1,18 @@
-"""
-Este módulo ejecuta la simulación federada por matrices locales perturbadas sobre los datasets de PrefLib.
-"""
+"""Ejecuta la simulación federada por matrices locales perturbadas."""
+
 import argparse
 
 from experimentos.federado import COLUMNAS_FEDERADO, ejecutar_dataset_federado
 from experimentos.utils_experiments import (
+    resolver_dataset,
     crear_output_path,
     guardar_csv,
-    resolver_dataset,
 )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Ejecuta la simulación federada por matrices locales perturbadas."
+        description="Ejecuta la simulación federada del OBOP por matrices locales perturbadas."
     )
 
     parser.add_argument(

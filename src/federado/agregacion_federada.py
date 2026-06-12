@@ -22,8 +22,8 @@ import numpy as np
 
 from data.preflib_to_C import obtener_posiciones_buckets, validar_C
 from agregacion_ruido.agregacion_ruido_matriz import (
-    PROBABILIDAD_ALEATORIA,
-    UMBRAL_CERCA_EMPATE,
+    PROBABILIDAD_PARES_ALEATORIOS,
+    UMBRAL_EMPATE
 )
 
 
@@ -126,40 +126,6 @@ def construir_C_desde_W_M(W, M):
     return validar_C(C)
 
 
-def construir_clientes_locales(clientes, num_alternativas):
-    """
-    Construye la información local de cada cliente.
-
-    Para cada cliente se calcula:
-
-        rankings_i -> W_i, M_i -> C_i
-
-    No se completan rankings incompletos. Los pares no observados quedan
-    reflejados en M_i(a,b)=0.
-    """
-    clientes_locales = []
-
-    for cliente_id, rankings_cliente in enumerate(clientes, start=1):
-        W_i, M_i = construir_W_M_desde_rankings(
-            rankings=rankings_cliente,
-            num_alternativas=num_alternativas,
-        )
-
-        C_i = construir_C_desde_W_M(W_i, M_i)
-
-        clientes_locales.append(
-            {
-                "cliente_id": cliente_id,
-                "m_cliente": len(rankings_cliente),
-                "W_i": W_i,
-                "M_i": M_i,
-                "C_i": C_i,
-            }
-        )
-
-    return clientes_locales
-
-
 def criterio_perturbacion_federado(C, i, j, tecnica, rng):
     """
     Decide si se perturba el par (i,j) según la técnica indicada.
@@ -168,10 +134,10 @@ def criterio_perturbacion_federado(C, i, j, tecnica, rng):
         return True
 
     if tecnica == "aleatoria":
-        return rng.random() < PROBABILIDAD_ALEATORIA
+        return rng.random() < PROBABILIDAD_PARES_ALEATORIOS
 
     if tecnica == "cerca_empate":
-        return abs(float(C[i, j]) - 0.5) <= UMBRAL_CERCA_EMPATE
+        return abs(float(C[i, j]) - 0.5) <= UMBRAL_EMPATE
 
     raise ValueError("tecnica debe ser: todos, aleatoria o cerca_empate.")
 
@@ -235,40 +201,3 @@ def agregar_matrices_clientes(matrices_clientes, matrices_M):
         M_global += M_i
 
     return construir_C_desde_W_M(W_global, M_global)
-
-
-def perturbar_y_agregar_clientes(clientes_locales, b, tecnica, rng):
-    """
-    Simula el protocolo federado con ruido local.
-
-    Para cada cliente se obtiene C_i_ruido aplicando ruido sobre los pares
-    observados de C_i. Después, el servidor agrega las matrices locales
-    perturbadas usando las matrices M_i como denominadores por par.
-    """
-    matrices_ruido = []
-    matrices_M = []
-    clientes_resultado = []
-
-    for cliente in clientes_locales:
-        C_i_ruido = perturbar_matriz_observada(
-            C=cliente["C_i"],
-            M=cliente["M_i"],
-            b=b,
-            tecnica=tecnica,
-            rng=rng,
-        )
-
-        matrices_ruido.append(C_i_ruido)
-        matrices_M.append(cliente["M_i"])
-
-        cliente_resultado = dict(cliente)
-        cliente_resultado["C_i_ruido"] = C_i_ruido
-
-        clientes_resultado.append(cliente_resultado)
-
-    C_federada = agregar_matrices_clientes(
-        matrices_clientes=matrices_ruido,
-        matrices_M=matrices_M,
-    )
-
-    return C_federada, clientes_resultado

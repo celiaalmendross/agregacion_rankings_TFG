@@ -38,7 +38,7 @@ class PrefLibProfile:
         - file_path: ruta del fichero original.
         - data_type: tipo de dataset (soc, soi, toc, toi).
         - num_alternativas: número total de alternativas en el fichero.
-        - num_voters: número total de rankings, teniendo en cuenta mulltiplicidades.
+        - num_voters: número total de rankings, teniendo en cuenta multiplicidades.
         - num_unique_orders: número de órdenes únicos en el fichero.
         - alternative_names: diccionario opcional con el nombre de las alternativas.
         - orders: lista de tuplas (multiplicidad, ranking) donde ranking es una tupla de buckets (OrdenBuckets).
@@ -277,11 +277,7 @@ def cargar_dataset_preflib(path):
 
 def extraer_rankings_dataset(profile):
     """
-    Extrae los rankings del perfil respetando la multiplicidad.
-
-    Si un ranking aparece con multiplicidad 100, se añade 100 veces a la lista,
-    porque representa a 100 votantes con la misma preferencia.
-    """
+    Extrae los rankings del perfil respetando la multiplicidad."""
     rankings = []
 
     for multiplicidad, order in profile.orders:
@@ -381,8 +377,7 @@ def cargar_preflib_a_C(path):
     Carga un dataset PrefLib y devuelve la matriz C, los rankings y el perfil.
 
     Esta es la función principal que usa el pipeline experimental.
-    Primero lee el fichero, después expande los rankings según su multiplicidad
-    y finalmente construye la matriz de precedencias.
+    Primero lee el fichero, después expande los rankings según su multiplicidad y finalmente construye la matriz de precedencias.
     """
     profile = cargar_dataset_preflib(path)
     rankings = extraer_rankings_dataset(profile)

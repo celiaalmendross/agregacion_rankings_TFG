@@ -2,7 +2,7 @@
 Estrategias de agregación de ruido sobre scores latentes.
 
 Este módulo implementa las estrategias de perturbación aplicadas sobre los scores latentes.
-La idea parte de la contrucción de scores latentes a partir de la matriz de precedencias. Estos scores se perturban añadiendo ruido de Laplace y finalmente se reconstruye una nueva matriz de precedencias a partir de los scores perturbados.
+La idea parte de la construcción de scores latentes a partir de la matriz de precedencias. Estos scores se perturban añadiendo ruido de Laplace y finalmente se reconstruye una nueva matriz de precedencias a partir de los scores perturbados.
 """
 
 import numpy as np
@@ -12,8 +12,7 @@ from data.preflib_to_C import validar_C
 
 
 def estimar_scores(C):
-    """
-    Estima un score para cada ítem sumando su fila en la matriz C.
+    """Estima un score para cada ítem sumando su fila en la matriz C.
     Se hace mediante un suma por filas de la matriz de precedencias. Un score alto indica que el ítem es preferido frente a muchos otros, mientras que un score bajo indica lo contrario.
     Después se normalizan los scores para que el ruido afecte de forma más estable.
     """
@@ -43,8 +42,7 @@ def funcion_probit(x):
 
 
 def agregar_ruido_scores(scores, b, rng):
-    """
-    Añade ruido de Laplace a cada score latente.
+    """Añade ruido de Laplace a cada score latente.
     El parámetro b controla la intensidad del ruido
     """
     ruido = rng.laplace(loc=0.0, scale=b, size=scores.shape)
@@ -52,8 +50,7 @@ def agregar_ruido_scores(scores, b, rng):
 
 
 def reconstruir_matriz_desde_scores(scores, funcion_sigma):
-    """
-    Reconstruye una matriz de precedencias a partir de los scores perturbados.
+    """Reconstruye una matriz de precedencias a partir de los scores perturbados.
     Para cada par de ítems se compara la diferencia entre sus scores. El resultado se transforma en un valor entre 0 y 1 mediante la función elegida.
     """
     n = len(scores)
@@ -82,8 +79,7 @@ def seleccionar_funcion_sigma(tecnica):
 
 
 def aplicar_ruido_scores(C, b, rng, tecnica):
-    """
-    Aplica ruido sobre scores latentes y devuelve la matriz C perturbada.
+    """Aplica ruido sobre scores latentes y devuelve la matriz C perturbada.
     Primero se estiman scores a partir de la matriz original, después se les añade ruido y finalmente se reconstruye una nueva matriz de precedencias.
     """
     C = validar_C(C)

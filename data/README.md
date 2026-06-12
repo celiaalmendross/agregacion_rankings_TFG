@@ -18,10 +18,8 @@ Aunque las carpetas pueden contener más ficheros, la experimentación final se 
 | Colección | Instancia | Formato |
 |---|---|---|
 | `00006_skate/` | `00006-00000040.toc` | `.toc` |
-| `00035_breakfast/` | `00035-00000002.soc` | `.soc` |
 | `00035_breakfast/` | `00035-00000006.soc` | `.soc` |
 | `00068_poland_local_elections/` | `00068-00000301.soi` | `.soi` |
-| `00068_poland_local_elections/` | `00068-00000681.soi` | `.soi` |
 | `00071_voter-autrement-in-situ/` | `00071-00000033.toi` | `.toi` |
 
 ## Formatos utilizados

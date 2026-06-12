@@ -1,6 +1,4 @@
-"""
-Este modulo ejecuta el baseline OBOP sin ruido sobre los datasets de PrefLib.
-"""
+"""Ejecuta el baseline centralizado del OBOP sin ruido sobre una instancia PrefLib."""
 
 import argparse
 
@@ -9,10 +7,9 @@ from experimentos.utils_experiments import (
     guardar_csv,
     resolver_dataset,
 )
-
 from experimentos.baseline import (
     COLUMNAS_BASELINE,
-    ejecutar_dataset
+    ejecutar_baseline_dataset
 )
 
 
@@ -35,7 +32,7 @@ def main():
         prefijo="baseline",
     )
 
-    fila = ejecutar_dataset(dataset_path)
+    fila = ejecutar_baseline_dataset(dataset_path)
     guardar_csv(
         filas=[fila],
         output_path=output_path,
@@ -44,7 +41,7 @@ def main():
 
     print(f"Dataset: {dataset_path.name}")
     print("Filas generadas: 1")
-    print(f"Salida: {output_path}")
+    print(f"CSV guardado en: {output_path}")
 
 
 if __name__ == "__main__":

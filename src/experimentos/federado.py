@@ -13,6 +13,7 @@ import numpy as np
 from experimentos.utils_experiments import (
     cargar_dataset,
     resolver_obop_completo,
+    resolver_obop_ponderado_completo,
     buckets_to_json,
     parse_lista_float,
     parse_lista_int,
@@ -20,16 +21,15 @@ from experimentos.utils_experiments import (
 
 from data.preflib_to_C import validar_C
 
-from metricas.metricas_federada import (
-    calcular_metricas_globales_federadas,
-    calcular_metricas_cliente_federado,
+from metricas.kendall_tau import kendall_tau_b
+from metricas.metricas_ruido import (
+    distancia_matrices,
+    distancia_bucket_orders,
+    sensibilidad_ruido,
 )
-
-from federado.agregacion_federada import (
-    dividir_rankings_en_clientes,
-    construir_clientes_locales,
-    perturbar_y_agregar_clientes,
-)
+from federado.agregacion_federada import dividir_rankings_en_clientes
+from federado.cliente import ClienteFederado
+from federado.servidor import ServidorFederado
 
 COLUMNAS_FEDERADO = [
     "instancia",
@@ -110,7 +110,8 @@ def crear_filas_clientes(
     seed,
     metricas_globales,
     buckets_federado,
-    clientes_resultado,
+    clientes_simulados,
+    metricas_clientes,
     tiempo,
 ):
     """
@@ -118,13 +119,7 @@ def crear_filas_clientes(
     """
     filas = []
 
-    for cliente in clientes_resultado:
-        metricas_cliente = calcular_metricas_cliente_federado(
-            C_i=cliente["C_i"],
-            C_i_ruido=cliente["C_i_ruido"],
-            buckets_federado=buckets_federado,
-            obj_local=cliente["obj_local"],
-        )
+    for cliente, metricas_cliente in zip(clientes_simulados, metricas_clientes):
 
         fila = {
             "instancia": dataset_path.name,
@@ -132,8 +127,8 @@ def crear_filas_clientes(
             "n": profile.num_alternativas,
             "m": m_real,
             "num_clientes": num_clientes,
-            "cliente_id": cliente["cliente_id"],
-            "m_cliente": cliente["m_cliente"],
+            "cliente_id": cliente.cliente_id,
+            "m_cliente": cliente.m_cliente,
             "metodo_federado": metodo_federado,
             "tecnica": tecnica,
             "b": b,
@@ -143,9 +138,9 @@ def crear_filas_clientes(
             "distancia_salida_global": metricas_globales["distancia_salida_global"],
             "sensibilidad_global": metricas_globales["sensibilidad_global"],
             **metricas_cliente,
-            "n_buckets_local": len(cliente["buckets_local"]),
+            "n_buckets_local": len(cliente.buckets_local),
             "n_buckets_federado": len(buckets_federado),
-            "buckets_local": buckets_to_json(cliente["buckets_local"]),
+            "buckets_local": buckets_to_json(cliente.buckets_local),
             "buckets_federado": buckets_to_json(buckets_federado),
             "tiempo": tiempo,
         }
@@ -154,6 +149,41 @@ def crear_filas_clientes(
 
     return filas
 
+def calcular_metricas_globales_federadas(
+    C_central,
+    C_federada,
+    buckets_central,
+    buckets_federado,
+):
+    n = C_central.shape[0]
+
+    distancia_entrada_global = distancia_matrices(
+        C_central,
+        C_federada,
+    )
+
+    distancia_salida_global = distancia_bucket_orders(
+        buckets_central,
+        buckets_federado,
+        n,
+    )
+
+    sensibilidad_global = sensibilidad_ruido(
+        distancia_entrada_global,
+        distancia_salida_global,
+    )
+
+    kendall_tau_global = kendall_tau_b(
+        buckets_central,
+        buckets_federado,
+    )
+
+    return {
+        "kendall_tau_global": kendall_tau_global,
+        "distancia_entrada_global": distancia_entrada_global,
+        "distancia_salida_global": distancia_salida_global,
+        "sensibilidad_global": sensibilidad_global,
+    }
 
 def ejecutar_dataset_federado(dataset_path, args):
     """
@@ -177,36 +207,41 @@ def ejecutar_dataset_federado(dataset_path, args):
         for seed in seeds:
             rng_division = np.random.default_rng(seed)
 
-            clientes = dividir_rankings_en_clientes(
+            particiones_clientes = dividir_rankings_en_clientes(
                 rankings=rankings,
                 num_clientes=num_clientes,
                 rng=rng_division,
             )
+            clientes = []
 
-            clientes_locales = construir_clientes_locales(
-                clientes=clientes,
-                num_alternativas=profile.num_alternativas,
-            )
-
-            for cliente in clientes_locales:
-                obj_local, buckets_local = resolver_obop_completo(cliente["C_i"])
-                cliente["obj_local"] = obj_local
-                cliente["buckets_local"] = buckets_local
+            for cliente_id, rankings_cliente in enumerate(particiones_clientes, start=1):
+                cliente = ClienteFederado(
+                    cliente_id=cliente_id,
+                    rankings=rankings_cliente,
+                    num_alternativas=profile.num_alternativas,
+                )
+                cliente.construir_informacion_local()
+                cliente.resolver_bucket_order_local(resolver_obop_ponderado_completo)
+                clientes.append(cliente)
 
             for b in valores_b:
                 rng_ruido = np.random.default_rng(seed)
 
                 inicio = time.perf_counter()
 
-                C_federada, clientes_resultado = perturbar_y_agregar_clientes(
-                    clientes_locales=clientes_locales,
-                    b=b,
-                    tecnica=tecnica,
-                    rng=rng_ruido,
-                )
+                for cliente in clientes:
+                    cliente.perturbar_matriz_local(b=b, tecnica=tecnica, rng=rng_ruido)
 
-                C_federada = validar_C(C_federada)
-                _, buckets_federado = resolver_obop_completo(C_federada)
+                mensajes_clientes = [cliente.crear_mensaje_para_servidor() for cliente in clientes]
+
+                servidor = ServidorFederado()
+                servidor.recibir_mensajes_clientes(mensajes_clientes)
+                C_federada = servidor.agregar_matrices()
+                _, buckets_federado = servidor.resolver_bucket_order_federado(resolver_obop_completo)
+
+                buckets_para_clientes = servidor.obtener_bucket_order_para_clientes()
+
+                metricas_local = [cliente.evaluar_bucket_order_federado(buckets_para_clientes) for cliente in clientes]
 
                 metricas_globales = calcular_metricas_globales_federadas(
                     C_central=C_central,
@@ -229,7 +264,8 @@ def ejecutar_dataset_federado(dataset_path, args):
                         seed=seed,
                         metricas_globales=metricas_globales,
                         buckets_federado=buckets_federado,
-                        clientes_resultado=clientes_resultado,
+                        clientes_simulados=clientes,
+                        metricas_clientes=metricas_local,
                         tiempo=fin - inicio,
                     )
                 )

@@ -1,29 +1,28 @@
 """
 Estrategias de agregación de ruido sobre la matriz de precedencias C.
 
-Este módulo implementa las estrategias de perturbación aplicadas directamente
-sobre la matriz C utilizada por el OBOP. 
+Este módulo implementa las estrategias de perturbación aplicadas directamente sobre la matriz C utilizada por el OBOP. 
 
-Las técnicas implementadas difieren únicamente en qué pares de alternativas se
-perturban. En todos los casos, el ruido añadido sigue una distribución de
-Laplace centrada en cero, y el parámetro b controla su escala.
+Las técnicas implementadas difieren únicamente en qué pares de alternativas se perturban. En todos los casos, el ruido añadido sigue una distribución de Laplace centrada en cero, y el parámetro b controla su escala.
 """
 import numpy as np
 
 from data.preflib_to_C import validar_C
 
 #Parámetros internos fijados para no añadir más dimensiones experimentales.
-PROBABILIDAD_ALEATORIA = 0.30
-UMBRAL_CERCA_EMPATE = 0.10
+PROBABILIDAD_PARES_ALEATORIOS = 0.30
+UMBRAL_EMPATE = 0.10
 
 
-def perturbar_matriz_laplace(C, b, criterio, rng):
+def aplicar_ruido_matriz_laplace(C, b, criterio, rng):
     """
     Genera una nueva matriz de precedencias añadiendo ruido de Laplace.
     El parámetro b controla la intensidad del ruido. El criterio indica
     qué pares de elementos se perturban y cuáles se dejan igual.
     """
-
+    if b == 0:
+        return C.copy()
+    
     C = validar_C(C)
     n = C.shape[0]
     C_ruido = C.copy()
@@ -58,7 +57,7 @@ def tecnica_aleatoria(rng):
     dependa principalmente del parámetro b.
     """
     def criterio(i, j, C):
-        return rng.random() < PROBABILIDAD_ALEATORIA
+        return rng.random() < PROBABILIDAD_PARES_ALEATORIOS
 
     return criterio
 
@@ -69,15 +68,13 @@ def tecnica_cerca_empate():
     Estos pares representan comparaciones más indecisas o cercanas al empate.
     """
     def criterio(i, j, C):
-        return abs(float(C[i, j]) - 0.5) <= UMBRAL_CERCA_EMPATE
+        return abs(float(C[i, j]) - 0.5) <= UMBRAL_EMPATE
 
     return criterio
 
 
-def perturbar_matriz(C, b, tecnica, rng):
+def aplicar_ruido_matriz(C, b, tecnica, rng):
     """Selecciona la técnica de ruido sobre matriz y la aplica."""
-    # if rng is None:
-    #     rng = np.random.default_rng()
 
     if tecnica == "todos":
         criterio = tecnica_todos
@@ -88,7 +85,7 @@ def perturbar_matriz(C, b, tecnica, rng):
     else:
         raise ValueError("tecnica debe ser: todos, aleatoria o cerca_empate")
 
-    return perturbar_matriz_laplace(
+    return aplicar_ruido_matriz_laplace(
         C=C,
         b=b,
         criterio=criterio,
@@ -97,4 +94,4 @@ def perturbar_matriz(C, b, tecnica, rng):
 
 
 def aplicar_ruido_matriz(C, b, rng, tecnica="todos"):
-    return perturbar_matriz(C, b, tecnica, rng)
+    return aplicar_ruido_matriz(C, b, tecnica, rng)

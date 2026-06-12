@@ -1,6 +1,8 @@
 """
 Métrica de pérdida de calidad del bucket order con ruido respecto al bucket order original.
-Esta métrica se basa en la idea de evaluar ambos bucket orders (el original y el con ruido) sobre la matriz de precedencias original C, y medir cuánto empeora el bucket order con ruido respecto al bucket order original.
+
+Esta métrica evalúa ambos bucket orders sobre la matriz de precedencias original C
+y mide cuánto empeora el bucket order obtenido tras introducir ruido.
 """
 
 import numpy as np
@@ -43,7 +45,7 @@ def distancia_bucket_C(buckets, C):
 
 def perdida_calidad(buckets_original, buckets_ruido, C_original):
     """
-    Calcula cuánto empeora el consenso con ruido respecto al consenso original.
+    Calcula cuánto empeora el bucket order con ruido respecto al bucket order original.
 
     Se evalúan ambos bucket orders sobre la matriz original C.
     Se devuelve de manera normalizada, dividiendo por el número máximo posible de cambios, que es n*(n-1).

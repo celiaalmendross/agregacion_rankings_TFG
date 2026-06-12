@@ -1,5 +1,5 @@
 """
-Métrica de coeficiente de correlación de Kendall tau-b para bucket orders.
+Métrica de coeficiente de correlación de Kendall tau-b para comparar bucket orders.
 """
 from math import isnan
 from scipy.stats import kendalltau

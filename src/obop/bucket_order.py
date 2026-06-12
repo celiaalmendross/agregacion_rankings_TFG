@@ -1,8 +1,7 @@
 """
 Reconstrucción del bucket order a partir de la solución binaria del OBOP.
 
-El resolvedor ILP devuelve las variables x[r, s], pero la memoria y los experimentos trabajan con bucket orders explícitos, representados como listas
-de buckets. Este módulo transforma la relación binaria óptima en esa estructura más interpretable.
+El resolvedor ILP devuelve las variables x[r, s], pero la memoria y los experimentos trabajan con bucket orders explícitos, representados como listas de buckets. Este módulo transforma la relación binaria óptima en esa estructura más interpretable.
 
 Ejemplo de salida:
     [[1, 3], [2], [4, 5]]

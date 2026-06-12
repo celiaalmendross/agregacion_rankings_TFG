@@ -53,6 +53,8 @@ def sensibilidad_ruido(distancia_entrada, distancia_salida):
     está definida y se devuelve NaN.
     """
     if distancia_entrada == 0:
+        if distancia_salida == 0:
+            return 0.0
         return float("nan")
 
     return float(distancia_salida / distancia_entrada)

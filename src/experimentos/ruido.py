@@ -10,7 +10,7 @@ ruido.
 import time
 import numpy as np
 
-from agregacion_ruido.agregacion_ruido_matriz import perturbar_matriz
+from agregacion_ruido.agregacion_ruido_matriz import aplicar_ruido_matriz
 from agregacion_ruido.agregacion_ruido_rankings import aplicar_ruido_rankings
 from agregacion_ruido.agregacion_ruido_scores_latentes import aplicar_ruido_scores
 from experimentos.utils_experiments import (
@@ -99,12 +99,6 @@ def parse_tecnica(metodo, texto_tecnica):
 
     return tecnica
 
-def obtener_valores_b(args):
-    """
-    Obtiene los valores de b indicados por la terminal.
-    """
-    return parse_lista_float(args.b)
-
 def crear_fila_ruido(
     dataset_path,
     profile,
@@ -178,7 +172,7 @@ def ejecutar_ruido_matriz(
     rng = np.random.default_rng(seed)
     inicio = time.perf_counter()
 
-    C_ruido = perturbar_matriz(C, b, tecnica, rng)
+    C_ruido = aplicar_ruido_matriz(C, b, tecnica, rng)
     obj_ruido, buckets_ruido = resolver_obop_completo(C_ruido)
 
     fin = time.perf_counter()
@@ -353,7 +347,7 @@ def ejecutar_dataset_ruido(dataset_path, args):
     metodo = parse_metodo(args.metodo)
     tecnica = parse_tecnica(metodo, args.tecnica)
     seeds = parse_lista_int(args.seeds)
-    valores_b = obtener_valores_b(args)
+    valores_b = parse_lista_float(args.b)
 
     filas = []
 

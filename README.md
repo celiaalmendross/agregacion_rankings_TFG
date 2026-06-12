@@ -1,4 +1,4 @@
-# Privacidad en agregación de rankings con empates mediante OBOP: Aplicación del Aprendizaje Federado
+# Privacidad en agregación de rankings: Aplicación del Aprendizaje Federado
 
 Este repositorio contiene el código desarrollado para el Trabajo Fin de Grado de **Celia Almendros Saelices**.
 
@@ -8,12 +8,12 @@ El proyecto se centra en la agregación de rankings con empates mediante el **Op
 
 El código implementa un pipeline experimental que permite:
 
-- cargar datasets de rankings en formato PrefLib;
-- construir la matriz de precedencias por pares \(C\);
-- resolver el OBOP mediante Programación Lineal Entera;
-- aplicar distintas estrategias de ruido;
-- simular un escenario federado con varios clientes;
-- comparar el bucket order original con los bucket orders obtenidos tras introducir ruido o al simular un entorno federado.
+- cargar datasets de rankings en formato PrefLib
+- construir la matriz de precedencias por pares \(C\)
+- resolver el OBOP mediante Programación Lineal Entera
+- aplicar distintas estrategias de ruido
+- implementar una simulación federada basada en matrices locales
+- comparar el bucket order original con los bucket orders obtenidos tras introducir ruido o ejecutar una simulación federada.
 
 El objetivo principal de los experimentos es analizar cómo cambia el bucket order obtenido por el OBOP cuando se perturba la información de entrada, tanto en un escenario centralizado como en una simulación federada.
 
@@ -27,17 +27,17 @@ La estructura general del repositorio es la siguiente:
 agregacion_rankings_TFG/
 │
 ├── data/
-│   ├── 00004_netflix/
 │   ├── 00006_skate/
 │   ├── 00035_breakfast/
 │   ├── 00068_poland_local_elections/
 │   ├── 00071_voter-autrement-in-situ/
-│   └── ...
+│   └── README.md
 │
 ├── outputs/
 │   ├── baseline/
 │   ├── ruido/
-│   └── federado/
+│   ├── federado/
+│   └── README.md   
 │
 ├── src/
 │   ├── agregacion_ruido/
@@ -55,6 +55,8 @@ agregacion_rankings_TFG/
 │   │   └── utils_experiments.py
 │   │
 │   ├── federado/
+│   │   ├── cliente.py
+│   │   ├── servidor.py
 │   │   └── agregacion_federada.py
 │   │
 │   ├── metricas/
@@ -215,7 +217,7 @@ Técnicas disponibles:
 Ejemplo:
 
 ```bash
-python src/run_ruido_experiments.py data/00068_poland_local_elections/00068-00001069.soi --metodo scores --tecnica logistic --b 0,0.01,0.05,0.10
+python src/run_ruido_experiments.py data/00068_poland_local_elections/00068-00000301.soi --metodo scores --tecnica logistic --b 0,0.01,0.05,0.10
 ```
 
 ---
@@ -242,7 +244,7 @@ Parámetros:
 Ejemplo:
 
 ```bash
-python src/run_federado_experiments.py data/00068_poland_local_elections/00068-00001069.soi --tecnica cerca_empate --b 0,0.01,0.05,0.10 --num_clientes 3,5,10
+python src/run_federado_experiments.py data/00068_poland_local_elections/00068-00000301.soi --tecnica cerca_empate --b 0,0.01,0.05,0.10 --num_clientes 3,5,10
 ```
 
 Los resultados se guardan en:
@@ -250,47 +252,6 @@ Los resultados se guardan en:
 ```text
 outputs/federado/
 ```
-
----
-
-## Agregación federada mediante matrices \(W_i\) y \(M_i\)
-
-En la simulación federada, cada cliente \(i\) recibe un subconjunto de rankings y construye dos matrices locales:
-
-\[
-W_i(a,b)
-\]
-
-y
-
-\[
-M_i(a,b).
-\]
-
-La matriz \(W_i(a,b)\) acumula la evidencia local de que la alternativa \(a\) precede a la alternativa \(b\). Si \(a\) precede a \(b\), se suma 1; si ambas alternativas están empatadas, se suma 0.5; y si \(b\) precede a \(a\), se suma 0.
-
-La matriz \(M_i(a,b)\) cuenta cuántos rankings locales aportan información sobre el par \((a,b)\). En rankings incompletos, si alguna de las dos alternativas no aparece, ese ranking no aporta información sobre el par.
-
-A partir de estas matrices, cada cliente construye su matriz local:
-
-\[
-C_i(a,b)=\frac{W_i(a,b)}{M_i(a,b)}
-\]
-
-cuando \(M_i(a,b)>0\). Si \(M_i(a,b)=0\), se asigna \(C_i(a,b)=0.5\), ya que no existe evidencia local sobre ese par.
-
-Tras aplicar ruido local sobre \(C_i\), el servidor agrega las matrices perturbadas mediante una media ponderada por pares:
-
-\[
-\widetilde C_{\text{fed}}(a,b)=
-\frac{
-\sum_i M_i(a,b)\widetilde C_i(a,b)
-}{
-\sum_i M_i(a,b)
-}.
-\]
-
-Esta ponderación evita que un cliente tenga el mismo peso en un par observado muchas veces que en un par apenas observado. Si ningún cliente aporta información sobre un par, se asigna el valor neutro \(0.5\).
 
 ---
 
@@ -317,7 +278,7 @@ Los ficheros de `outputs/ruido/` incluyen, entre otras, las siguientes columnas:
 - `n_buckets`: número de buckets del bucket order original;
 - `n_buckets_ruido`: número de buckets del bucket order perturbado;
 - `tiempo`: tiempo de ejecución;
-- `kendall_tau`: similitud entre el bucket order original y el perturbado;
+- `kendall_tau`: coeficiente de correlación entre el bucket order original y el perturbado;
 - `perdida`: pérdida de calidad respecto a la matriz original;
 - `distancia_entrada`: distancia entre la matriz original y la matriz perturbada;
 - `distancia_salida`: distancia entre el bucket order original y el perturbado;
@@ -340,7 +301,7 @@ Los ficheros de `outputs/federado/` incluyen, entre otras, las siguientes column
 - `tecnica`: técnica de ruido local;
 - `b`: valor del parámetro de ruido;
 - `seed`: semilla aleatoria;
-- `kendall_tau_global`: similitud entre el bucket order centralizado y el bucket order federado;
+- `kendall_tau_global`: coeficiente de correlación entre el bucket order centralizado y el bucket order federado;
 - `obj_local`: valor objetivo del bucket order local del cliente;
 - `obj_federado_en_cliente`: valor objetivo del bucket order federado evaluado sobre la matriz local del cliente;
 - `perdida_local`: pérdida de calidad local;

@@ -1,5 +1,8 @@
 """
-Este módulo contiene el código para ejecutar el baseline sobre un dataset. El baseline consiste en resolver el OBOP mediante programación lineal entera, y sin añadir ruido."""
+Ejecución del baseline centralizado sin ruido.
+
+Para una instancia PrefLib, construye la matriz C, resuelve el OBOP exacto y devuelve una fila con el bucket order óptimo y su valor objetivo.
+"""
 
 import time
 
@@ -22,11 +25,11 @@ COLUMNAS_BASELINE = [
     "buckets"
 ]
 
-def ejecutar_dataset(dataset_path):
+def ejecutar_baseline_dataset(dataset_path):
     """
     Ejecuta el baseline sobre un dataset.
     """
-    C, _ , profile = cargar_dataset(dataset_path)
+    C, _, profile = cargar_dataset(dataset_path)
 
     inicio = time.perf_counter()
     obj_value, buckets = resolver_obop_completo(C)

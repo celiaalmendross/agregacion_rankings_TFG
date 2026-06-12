@@ -1,5 +1,5 @@
-"""
-Este módulo ejecuta experimentos de ruido sobre los datasets de PrefLib."""
+"""Ejecuta experimentos centralizados con ruido sobre una instancia PrefLib."""
+
 import argparse
 
 from experimentos.utils_experiments import (
@@ -7,7 +7,6 @@ from experimentos.utils_experiments import (
     guardar_csv,
     resolver_dataset,
 )
-
 from experimentos.ruido import (
     COLUMNAS_RUIDO,
     ejecutar_dataset_ruido
@@ -16,7 +15,7 @@ from experimentos.ruido import (
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Ejecuta experimentos  centralizados de introducción deruido sobre OBOP."
+        description="Ejecuta experimentos centralizados de introducción de ruido sobre OBOP."
     )
 
     parser.add_argument(

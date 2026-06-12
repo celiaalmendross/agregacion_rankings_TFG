@@ -14,6 +14,7 @@ from datetime import datetime
 from data.preflib_to_C import cargar_preflib_a_C
 from obop.obop_ilp import resolver_obop as resolver_obop_ilp
 from obop.bucket_order import reconstruir_bucket_order
+from obop.obop_ilp import resolver_obop_ponderado
 
 #Directorio raíz del proyecto. Se asume que este script está en src/experimentos/utils_experiments.py
 PROJECT_DIR = Path(__file__).resolve().parents[2] 
@@ -80,6 +81,21 @@ def resolver_obop_completo(C):
     return float(obj_value), buckets
 
 
+def resolver_obop_ponderado_completo(C, pesos):
+    """
+    Resuelve el OBOP ponderado mediante ILP y reconstruye el bucket order final."""
+    n = C.shape[0]
+
+    obj_value, xsol = resolver_obop_ponderado(
+        C,
+        pesos=pesos,
+    )
+
+    buckets = reconstruir_bucket_order(xsol, n)
+
+    return float(obj_value), buckets
+
+
 def crear_output_path(ruta, carpeta_salida, prefijo):
     """
     Construye la ruta del CSV de salida dentro de outputs/.
@@ -114,7 +130,7 @@ def buckets_to_json(buckets):
 
 def parse_lista_float(texto):
     """
-    Convierte una cadena separa por comas en una lista de valores float.
+    Convierte una cadena separada por comas en una lista de valores float.
 
     Ejemplo: "0.1,0.5,0.3" -> [0.1, 0.5, 0.3]
     """
@@ -123,7 +139,7 @@ def parse_lista_float(texto):
 
 def parse_lista_int(texto):
     """
-    Convierte una cadena separa por comas en una lista de valores int.
+    Convierte una cadena separada por comas en una lista de valores int.
 
     Ejemplo: "1,5,3" -> [1, 5, 3]
     """

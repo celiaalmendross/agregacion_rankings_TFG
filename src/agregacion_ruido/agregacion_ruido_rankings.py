@@ -13,16 +13,13 @@ La perturbación se controla mediante dos niveles:
 1. El parámetro b indica la probabilidad de seleccionar cada ranking individual
    para ser perturbado.
 
-2. Una vez seleccionado un ranking, se aplica un número de cambios proporcional
-   a su tamaño. Por defecto, se modifica aproximadamente el 25% de sus
-   alternativas, garantizando al menos un cambio cuando el ranking tiene dos
-   o más alternativas.
+2. Una vez seleccionado un ranking, se aplica un número de cambios proporcionala su tamaño. Por defecto, se modifica aproximadamente el 10% de  sus alternativas, garantizando al menos un cambio cuando el ranking tiene dos o más alternativas.
 
 """
 import math 
 
 from data.preflib_to_C import construir_C_desde_rankings
-PROPORCION_CAMBIOS = 0.25
+PROPORCION_CAMBIOS = 0.10
 
 def eliminar_buckets_vacios(ranking):
     """Elimina los buckets que se hayan quedado sin elementos después de aplicar ruido."""
@@ -39,9 +36,7 @@ def obtener_lista_items(ranking):
     return [item for bucket in ranking for item in bucket]
 
 def calcular_num_cambios_ranking(ranking, proporcion=PROPORCION_CAMBIOS):
-        """
-        Calcula el número de cambios que se aplican a un ranking seleccionado para perturbación.
-        """
+        """Calcula el número de cambios que se aplican a un ranking seleccionado para perturbación."""
         n_items = len(obtener_lista_items(ranking))
 
         if n_items < 2:
@@ -51,8 +46,7 @@ def calcular_num_cambios_ranking(ranking, proporcion=PROPORCION_CAMBIOS):
 
 
 def aplicar_intercambio(ranking, num_cambios, rng):
-    """
-    Aplica la estrategia de intercambio efectivo.
+    """Aplica la estrategia de intercambio efectivo.
 
     En cada cambio se seleccionan dos buckets distintos y se escoge
     un ítem de cada uno. Después se intercambian ambos ítems.
@@ -84,15 +78,11 @@ def aplicar_intercambio(ranking, num_cambios, rng):
 
 
 def aplicar_movimiento(ranking, num_cambios, rng):
-    """
-    Aplica la estrategia de movimiento.
+    """Aplica la estrategia de movimiento.
 
     En cada cambio se selecciona un ítem al azar y se desplaza un número
     aleatorio de buckets. El desplazamiento se elige entre 1 y el número total de buckets,
     con dirección aleatoria hacia arriba o hacia abajo.
-
-    Si el ítem pertenece a un bucket con más elementos, se extrae de ese bucket
-    y se añade al bucket destino. Si el bucket original queda vacío, se elimina.
     """
      
     ranking = copiar_ranking(ranking)
@@ -119,8 +109,8 @@ def aplicar_movimiento(ranking, num_cambios, rng):
 
 
 def aplicar_empate(ranking, num_cambios, rng):
-    """
-    Aplica la estrategia de empate.
+    """Aplica la estrategia de empate.
+
     Si el bucket elegido tiene varios ítems, se separa uno de ellos en un nuevo bucket.
     Si el bucket elegido tiene un único ítem, se toma un ítem de otro bucket y se añade al bucket actual, creando o ampliando un empate.
     """
@@ -161,9 +151,8 @@ def aplicar_empate(ranking, num_cambios, rng):
 
 
 def aplicar_local(ranking, num_cambios, rng):
-    """
-    Aplica la estrategia local.
-    En cada cambio se selecciona un tramo consecutivo del ranking y se invierte el orden de sus buckets. Los empates dentro de cada bucket se mantienen.
+    """Aplica la estrategia local.
+    En cada cambio se selecciona un tramo consecutivo del ranking y se invierte el orden de sus buckets.
     """
     ranking = copiar_ranking(ranking)
 
@@ -184,11 +173,9 @@ def aplicar_local(ranking, num_cambios, rng):
 
 
 def aplicar_perturbacion_ranking(ranking, num_cambios, rng):
-    """
-    Aplica una perturbación aleatoria sobre un ranking individual.
+    """Aplica una perturbación aleatoria sobre un ranking individual.
 
-    Para cada ranking se selecciona al azar una de las operaciones básicas:
-    intercambio, movimiento, empate o local.
+    Para cada ranking se selecciona al azar una de las operaciones básicas: intercambio, movimiento, empate o local.
     """
  
     ranking = eliminar_buckets_vacios(ranking)
@@ -217,20 +204,9 @@ def aplicar_perturbacion_ranking(ranking, num_cambios, rng):
 
 
 def aplicar_ruido_rankings(rankings, num_alternativas, b, rng):
-        """
-        Aplica ruido aleatorio sobre rankings individuales y reconstruye
-        la matriz C.
-
-        Las operaciones están diseñadas para producir modificaciones efectivas
-        sobre el bucket order siempre que la estructura del ranking lo permita.
-        No obstante, varias operaciones consecutivas pueden compensarse entre sí;
-        por ejemplo, dos intercambios sucesivos podrían recuperar el estado inicial.
-        Por tanto, b no garantiza exactamente la proporción final de rankings
-        distintos al original.
-        """
+        """Aplica ruido aleatorio sobre rankings individuales y reconstruyela matriz C."""
         if b < 0 or b > 1:
             raise ValueError("El parámetro b debe estar en el intervalo [0, 1].")
-
 
         rankings_ruido = []
 
