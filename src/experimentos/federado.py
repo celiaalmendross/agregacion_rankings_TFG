@@ -230,7 +230,7 @@ def ejecutar_dataset_federado(dataset_path, args):
                 inicio = time.perf_counter()
 
                 for cliente in clientes:
-                    cliente.perturbar_matriz_local(b=b, tecnica=tecnica, rng=rng_ruido)
+                    cliente.introducir_ruido_matriz_local(b=b, tecnica=tecnica, rng=rng_ruido)
 
                 mensajes_clientes = [cliente.crear_mensaje_para_servidor() for cliente in clientes]
 

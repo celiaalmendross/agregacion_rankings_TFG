@@ -142,7 +142,7 @@ def criterio_perturbacion_federado(C, i, j, tecnica, rng):
     raise ValueError("tecnica debe ser: todos, aleatoria o cerca_empate.")
 
 
-def perturbar_matriz_observada(C, M, b, tecnica, rng):
+def introducir_ruido_matriz_observada(C, M, b, tecnica, rng):
     """
     Perturba una matriz local C_i solo en pares observados.
 

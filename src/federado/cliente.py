@@ -7,7 +7,7 @@ despliegue federado real, ocurrirían dentro de cada cliente:
 - construir la matriz local C_i a partir de sus rankings;
 - construir la matriz de soporte M_i;
 - resolver opcionalmente el OBOP local para evaluación experimental;
-- perturbar localmente C_i para obtener C_i_ruido;
+- introducir ruido localmente C_i para obtener C_i_ruido;
 - enviar al servidor solo C_i_ruido y M_i;
 - recibir el bucket order federado y calcular métricas locales.
 """
@@ -15,7 +15,7 @@ despliegue federado real, ocurrirían dentro de cada cliente:
 from federado.agregacion_federada import (
     construir_W_M_desde_rankings,
     construir_C_desde_W_M,
-    perturbar_matriz_observada,
+    introducir_ruido_matriz_observada,
 )
 from metricas.metricas_federada import calcular_metricas_cliente_federado
 
@@ -64,11 +64,11 @@ class ClienteFederado:
             )
         )
 
-    def perturbar_matriz_local(self, b, tecnica, rng):
+    def introducir_ruido_matriz_local(self, b, tecnica, rng):
         if self.C_i is None or self.M_i is None:
             raise RuntimeError("Antes hay que construir C_i y M_i.")
 
-        self.C_i_ruido = perturbar_matriz_observada(
+        self.C_i_ruido = introducir_ruido_matriz_observada(
             C=self.C_i,
             M=self.M_i,
             b=b,
@@ -81,7 +81,7 @@ class ClienteFederado:
         Crea el mensaje que el cliente envía al servidor.
         """
         if self.C_i_ruido is None:
-            raise RuntimeError("Antes hay que perturbar C_i.")
+            raise RuntimeError("Antes hay que introducir ruido en C_i.")
 
         return {
             "cliente_id": self.cliente_id,
