@@ -48,8 +48,8 @@ class ClienteFederado:
         )
         self.C_i = construir_C_desde_W_M(self.W_i, self.M_i)
 
-        # Limpiamos la información local que no se enviará al servidor para evitar confusiones.
-        self.C_i = None
+        # Reiniciamos los resultados derivados si se reconstruye la información local.
+        self.C_i_ruido = None
         self.obj_local = None
         self.buckets_local = None
 
