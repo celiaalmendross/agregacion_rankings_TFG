@@ -73,7 +73,7 @@ def tecnica_cerca_empate():
     return criterio
 
 
-def aplicar_ruido_matriz(C, b, tecnica, rng):
+def aplicar_ruido_matriz(C, b, rng, tecnica="todos"):
     """Selecciona la técnica de ruido sobre matriz y la aplica."""
 
     if tecnica == "todos":
@@ -91,7 +91,3 @@ def aplicar_ruido_matriz(C, b, tecnica, rng):
         criterio=criterio,
         rng=rng,
     )
-
-
-def aplicar_ruido_matriz(C, b, rng, tecnica="todos"):
-    return aplicar_ruido_matriz(C, b, tecnica, rng)

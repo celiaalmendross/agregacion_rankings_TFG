@@ -172,7 +172,12 @@ def ejecutar_ruido_matriz(
     rng = np.random.default_rng(seed)
     inicio = time.perf_counter()
 
-    C_ruido = aplicar_ruido_matriz(C, b, tecnica, rng)
+    C_ruido = aplicar_ruido_matriz(
+        C=C,
+        b=b,
+        rng=rng,
+        tecnica=tecnica,
+    )
     obj_ruido, buckets_ruido = resolver_obop_completo(C_ruido)
 
     fin = time.perf_counter()
