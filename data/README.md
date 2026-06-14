@@ -13,7 +13,7 @@ Los datos proceden de PrefLib y contienen perfiles de preferencias en distintos 
 
 ## Instancias seleccionadas
 
-Aunque las carpetas pueden contener más ficheros, la experimentación final se ha realizado sobre seis instancias concretas:
+Aunque las carpetas pueden contener más ficheros, la experimentación final se ha realizado sobre cuatro instancias concretas:
 
 | Colección | Instancia | Formato |
 |---|---|---|
